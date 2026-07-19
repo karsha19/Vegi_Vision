@@ -12,7 +12,7 @@ never hard-coded, never displayed in the UI.
 import os
 import json
 import re
-import google.generativeai as genai
+import google.genai as genai
 from PIL import Image
 
 GEMINI_MODEL_NAME = "gemini-flash-lite-latest"
