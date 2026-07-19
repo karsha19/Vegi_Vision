@@ -15,7 +15,7 @@ import re
 import google.generativeai as genai
 from PIL import Image
 
-GEMINI_MODEL_NAME = "gemini-2.0-flash"
+GEMINI_MODEL_NAME = "gemini-flash-lite-latest"
 
 
 def _get_api_key():
