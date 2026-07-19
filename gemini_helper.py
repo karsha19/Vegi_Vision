@@ -15,7 +15,7 @@ import re
 import google.generativeai as genai
 from PIL import Image
 
-GEMINI_MODEL_NAME = "gemini-flash-lite-latest"
+GEMINI_MODEL_NAME = "gemini-2.0-flash"
 
 
 def _get_api_key():
@@ -68,6 +68,12 @@ You are a professional chef and nutritionist. Create ONE detailed, delicious rec
 using primarily these vegetables: {vegetables}.
 Preferred cuisine style: {cuisine}.
 
+Write ALL text values in the JSON (title, ingredients, instructions, tips,
+substitutions, storage, nutrition labels, everything) in {language}. Use
+natural, fluent, native-level {language} phrasing — do not leave any value
+in English unless {language} is English. Keep the JSON keys themselves
+exactly as shown below (do not translate the keys, only the values).
+
 Respond with ONLY valid JSON (no markdown fences, no commentary) matching exactly
 this schema:
 
@@ -97,13 +103,14 @@ Make the recipe realistic, well-balanced, and genuinely cookable at home.
 """
 
 
-def generate_recipe(vegetables: list, cuisine: str = "Any") -> dict:
-    """Generate a structured recipe dict from Gemini."""
+def generate_recipe(vegetables: list, cuisine: str = "Any", language: str = "English") -> dict:
+    """Generate a structured recipe dict from Gemini, written in `language`."""
     _configure()
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
     prompt = RECIPE_SCHEMA_PROMPT.format(
         vegetables=", ".join(vegetables) if vegetables else "seasonal vegetables",
         cuisine=cuisine,
+        language=language,
     )
     response = model.generate_content(prompt)
     text = response.text or "{}"

@@ -11,11 +11,17 @@ grid cooking magazine rather than a default Streamlit dashboard.
 - Full recipe generation: title, cuisine, ingredients, step-by-step instructions,
   prep/cook time, calories, difficulty, servings, nutrition, chef tips,
   substitutions, and storage guidance
+- **Multi-language UI + recipes** — 10 languages (English, Hindi, Chinese,
+  Korean, Spanish, French, German, Japanese, Arabic, Portuguese). Switch
+  language from the sidebar (or the login screen); every label, button, and
+  message updates instantly, and Gemini writes the *recipe content itself*
+  in the selected language. Arabic automatically switches the whole layout
+  to right-to-left.
 - Save recipes to your personal journal (SQLite)
 - Recipe History with search + cuisine/difficulty filters
 - Favorites (heart toggle)
 - Profile page with stats (recipes generated, favorites, cuisines explored)
-- Dark / Light mode toggle
+- Dark / Light mode toggle, built on a centralized CSS variable theme system
 - Custom CSS: earthy palette, rounded bento cards, soft shadows, Fraunces +
   Manrope typography, hover animations, custom empty states
 
@@ -27,6 +33,7 @@ veggie_recipe_maker/
 ├── db.py                # SQLite schema + all persistence functions
 ├── gemini_helper.py      # Gemini API calls (image ID + recipe generation)
 ├── styles.py             # All custom CSS as one theme-aware string
+├── translations.py       # i18n: all UI strings, one dict per language
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -66,3 +73,8 @@ The SQLite database (`veggie_recipes.db`) is created automatically on first run.
   or displayed in the UI.
 - If `GEMINI_API_KEY` isn't set, the app still loads (login/history/favorites/
   profile all work) but recipe generation is disabled with a clear warning.
+- **Adding another language**: open `translations.py`, copy the `"en"` block
+  inside `TRANSLATIONS`, translate every value (keep the keys and any
+  `{placeholder}` tokens exactly as they are), and add an entry for it in
+  `LANGUAGES` at the top of the file. Nothing else needs to change — the rest
+  of the app only ever calls `t("some_key")`.

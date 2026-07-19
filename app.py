@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import db
 import gemini_helper as gm
 from styles import get_theme_css, FONT_IMPORT
+from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 
 load_dotenv()
 
@@ -43,6 +44,7 @@ def init_session():
         "selected_recipe_id": None,
         "veg_image": None,
         "detected_veg": "",
+        "language": DEFAULT_LANGUAGE,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -55,6 +57,14 @@ init_session()
 def inject_css():
     st.markdown(FONT_IMPORT, unsafe_allow_html=True)
     st.markdown(get_theme_css(st.session_state.dark_mode), unsafe_allow_html=True)
+    if current_language_meta().get("rtl"):
+        st.markdown(
+            """<style>
+            .stApp, .stApp * { direction: rtl; }
+            div[data-testid="stSidebar"] .stButton > button:hover { transform: translateX(-3px); }
+            </style>""",
+            unsafe_allow_html=True,
+        )
 
 
 inject_css()
@@ -118,12 +128,25 @@ def mini_card():
 # --------------------------------------------------------------- auth -----
 
 def auth_screen():
+    top_l, top_r = st.columns([4, 1])
+    with top_r:
+        lang_codes = list(LANGUAGES.keys())
+        lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
+        current_idx = lang_codes.index(st.session_state.language)
+        chosen = st.selectbox(
+            t("language_label"), lang_labels, index=current_idx, key="auth_lang_select", label_visibility="collapsed"
+        )
+        chosen_code = lang_codes[lang_labels.index(chosen)]
+        if chosen_code != st.session_state.language:
+            st.session_state.language = chosen_code
+            st.rerun()
+
     st.markdown(
-        """
-        <div style="text-align:center; margin-top:2.5rem; margin-bottom:1rem;">
-            <div style="font-family:'Fraunces',serif; font-size:2.4rem; font-weight:700;">🌿 Verdant</div>
+        f"""
+        <div style="text-align:center; margin-top:1rem; margin-bottom:1rem;">
+            <div style="font-family:'Fraunces',serif; font-size:2.4rem; font-weight:700;">🌿 {t('app_brand')}</div>
             <div style="color:var(--text-muted); letter-spacing:0.12em; text-transform:uppercase; font-size:0.78rem;">
-                A quiet little kitchen journal, powered by AI
+                {t('auth_subtitle')}
             </div>
         </div>
         """,
@@ -133,96 +156,110 @@ def auth_screen():
     col_a, col_center, col_b = st.columns([1, 1.2, 1])
     with col_center:
         with card(accent=True):
-            tabs = st.tabs(["Sign In", "Create Account"])
+            tabs = st.tabs([t("tab_signin"), t("tab_register")])
 
             with tabs[0]:
                 with st.form("login_form"):
-                    username = st.text_input("Username")
-                    password = st.text_input("Password", type="password")
-                    submitted = st.form_submit_button("Sign In →")
+                    username = st.text_input(t("label_username"))
+                    password = st.text_input(t("label_password"), type="password")
+                    submitted = st.form_submit_button(t("btn_signin"))
                     if submitted:
                         if not username or not password:
-                            st.error("Please fill in both fields.")
+                            st.error(t("err_fill_both"))
                         else:
-                            with st.spinner("Checking your credentials..."):
+                            with st.spinner(t("msg_checking")):
                                 time.sleep(0.4)
                                 user = db.verify_user(username, password)
                             if user:
                                 st.session_state.user = user
-                                st.success(f"Welcome back, {user['username']}!")
+                                st.success(t("msg_welcome_back", name=user["username"]))
                                 time.sleep(0.5)
                                 st.rerun()
                             else:
-                                st.error("Invalid username or password.")
+                                st.error(t("err_invalid_creds"))
 
             with tabs[1]:
                 with st.form("register_form"):
-                    new_username = st.text_input("Choose a username")
-                    new_email = st.text_input("Email")
-                    new_password = st.text_input("Choose a password", type="password")
-                    confirm_password = st.text_input("Confirm password", type="password")
-                    submitted = st.form_submit_button("Create Account →")
+                    new_username = st.text_input(t("label_choose_username"))
+                    new_email = st.text_input(t("label_email"))
+                    new_password = st.text_input(t("label_choose_password"), type="password")
+                    confirm_password = st.text_input(t("label_confirm_password"), type="password")
+                    submitted = st.form_submit_button(t("btn_register"))
                     if submitted:
                         if not all([new_username, new_email, new_password]):
-                            st.error("Please fill in all fields.")
+                            st.error(t("err_fill_all"))
                         elif new_password != confirm_password:
-                            st.error("Passwords do not match.")
+                            st.error(t("err_pw_mismatch"))
                         elif len(new_password) < 6:
-                            st.error("Password must be at least 6 characters.")
+                            st.error(t("err_pw_short"))
                         else:
-                            with st.spinner("Setting up your account..."):
+                            with st.spinner(t("msg_setting_up")):
                                 time.sleep(0.4)
                                 ok, msg = db.create_user(new_username, new_email, new_password)
                             if ok:
-                                st.success(msg + " Please sign in.")
+                                st.success(t("msg_account_created"))
                             else:
-                                st.error(msg)
+                                st.error(t("err_username_exists"))
 
 
 # ------------------------------------------------------------ sidebar -----
 
 def sidebar():
     with st.sidebar:
-        st.markdown('<div class="brand-mark">🌿 Verdant</div>', unsafe_allow_html=True)
-        st.markdown('<div class="brand-sub">Vegetable Recipe Journal</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="brand-mark">🌿 {t("app_brand")}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="brand-sub">{t("app_tagline")}</div>', unsafe_allow_html=True)
 
         nav_items = [
-            ("generate", "✨  Generate Recipe"),
-            ("history", "📖  Recipe History"),
-            ("favorites", "❤️  Favorites"),
-            ("profile", "🪴  Profile"),
+            ("generate", "✨", "nav_generate"),
+            ("history", "📖", "nav_history"),
+            ("favorites", "❤️", "nav_favorites"),
+            ("profile", "🪴", "nav_profile"),
         ]
-        for key, label in nav_items:
-            if st.button(label, key=f"nav_{key}", use_container_width=True):
+        for key, icon, label_key in nav_items:
+            if st.button(f"{icon}  {t(label_key)}", key=f"nav_{key}", use_container_width=True):
                 st.session_state.page = key
                 st.rerun()
 
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
 
-        mode_label = "☀️  Light Mode" if st.session_state.dark_mode else "🌙  Dark Mode"
+        mode_label = f"☀️  {t('theme_light')}" if st.session_state.dark_mode else f"🌙  {t('theme_dark')}"
         if st.button(mode_label, key="toggle_theme", use_container_width=True):
             st.session_state.dark_mode = not st.session_state.dark_mode
+            st.rerun()
+
+        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+
+        lang_codes = list(LANGUAGES.keys())
+        lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
+        current_idx = lang_codes.index(st.session_state.language)
+        st.markdown(f'<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.3rem;">🌐 {t("language_label")}</div>', unsafe_allow_html=True)
+        chosen = st.selectbox(
+            t("language_label"), lang_labels, index=current_idx, key="sidebar_lang_select", label_visibility="collapsed"
+        )
+        chosen_code = lang_codes[lang_labels.index(chosen)]
+        if chosen_code != st.session_state.language:
+            st.session_state.language = chosen_code
             st.rerun()
 
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
         st.markdown(
             f"""
             <div style="font-size:0.85rem; color:var(--text-secondary);">
-                Signed in as<br><b>{st.session_state.user['username']}</b>
+                {t('signed_in_as')}<br><b>{st.session_state.user['username']}</b>
             </div>
             """,
             unsafe_allow_html=True,
         )
-        if st.button("↩  Log Out", key="logout_btn", use_container_width=True):
+        if st.button(f"↩  {t('logout')}", key="logout_btn", use_container_width=True):
             st.session_state.user = None
             st.session_state.page = "generate"
             st.rerun()
 
         if not gm.is_configured():
             st.markdown(
-                '<div style="margin-top:1rem; font-size:0.75rem; color:#b3552e;">'
-                '⚠ GEMINI_API_KEY not set — recipe generation is disabled until it is configured.'
-                '</div>',
+                f'<div style="margin-top:1rem; font-size:0.75rem; color:var(--error);">'
+                f'⚠ {t("api_key_warning")}'
+                f'</div>',
                 unsafe_allow_html=True,
             )
 
@@ -245,40 +282,40 @@ def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True
                     st.rerun()
 
         pills = []
-        for label, key in [("⏱ Prep", "prep_time"), ("🔥 Cook", "cook_time"), ("🍽 Serves", "servings"), ("⚡ Calories", "calories")]:
+        for label_key, key in [("label_prep", "prep_time"), ("label_cook", "cook_time"), ("label_serves", "servings"), ("label_calories", "calories")]:
             val = recipe.get(key)
             if val:
-                pills.append(f'<span class="pill">{label}: {val}</span>')
+                pills.append(f'<span class="pill">{t(label_key)}: {val}</span>')
         st.markdown("".join(pills), unsafe_allow_html=True)
 
     col1, col2 = st.columns([1, 1.3])
 
     with col1:
         with card():
-            st.markdown('<span class="eyebrow">🥕 Ingredients</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eyebrow">🥕 {t("eyebrow_ingredients")}</span>', unsafe_allow_html=True)
             ingredients = recipe.get("ingredients", [])
             if ingredients:
                 rows = "".join(f'<div class="ingredient-row">• {i}</div>' for i in ingredients)
                 st.markdown(rows, unsafe_allow_html=True)
             else:
-                st.caption("No ingredients listed.")
+                st.caption(t("no_ingredients"))
 
         nutrition = recipe.get("nutrition", {})
         if nutrition:
             with card():
-                st.markdown('<span class="eyebrow">📊 Nutrition (per serving)</span>', unsafe_allow_html=True)
+                st.markdown(f'<span class="eyebrow">📊 {t("eyebrow_nutrition")}</span>', unsafe_allow_html=True)
                 pills = "".join(f'<span class="pill brown">{k.title()}: {v}</span>' for k, v in nutrition.items())
                 st.markdown(pills, unsafe_allow_html=True)
 
         storage = recipe.get("storage", "")
         if storage:
             with card():
-                st.markdown('<span class="eyebrow">🧊 Storage</span>', unsafe_allow_html=True)
+                st.markdown(f'<span class="eyebrow">🧊 {t("eyebrow_storage")}</span>', unsafe_allow_html=True)
                 st.markdown(f'<div style="color:var(--text-secondary); font-size:0.9rem;">{storage}</div>', unsafe_allow_html=True)
 
     with col2:
         with card():
-            st.markdown('<span class="eyebrow">👩‍🍳 Instructions</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eyebrow">👩‍🍳 {t("eyebrow_instructions")}</span>', unsafe_allow_html=True)
             steps = recipe.get("instructions", [])
             for idx, step in enumerate(steps, start=1):
                 st.markdown(
@@ -296,11 +333,11 @@ def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True
         if tips or subs:
             with card():
                 if tips:
-                    st.markdown('<span class="eyebrow">💡 Chef Tips</span>', unsafe_allow_html=True)
-                    for t in tips:
-                        st.markdown(f'<div class="step-text">• {t}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<span class="eyebrow">💡 {t("eyebrow_tips")}</span>', unsafe_allow_html=True)
+                    for tip in tips:
+                        st.markdown(f'<div class="step-text">• {tip}</div>', unsafe_allow_html=True)
                 if subs:
-                    st.markdown('<span class="eyebrow" style="margin-top:0.8rem;">🔄 Substitutions</span>', unsafe_allow_html=True)
+                    st.markdown(f'<span class="eyebrow" style="margin-top:0.8rem;">🔄 {t("eyebrow_substitutions")}</span>', unsafe_allow_html=True)
                     for s in subs:
                         st.markdown(f'<div class="step-text">• {s}</div>', unsafe_allow_html=True)
 
@@ -309,11 +346,11 @@ def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True
 
 def page_generate():
     st.markdown(
-        """
+        f"""
         <div class="top-header">
             <div>
-                <div class="kicker">Today's Craving</div>
-                <h1>Generate a Recipe</h1>
+                <div class="kicker">{t('kicker_today')}</div>
+                <h1>{t('title_generate')}</h1>
             </div>
         </div>
         """,
@@ -324,36 +361,36 @@ def page_generate():
 
     with col_input:
         with card():
-            st.markdown('<span class="eyebrow">🥦 Choose Your Vegetables</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eyebrow">🥦 {t("eyebrow_choose_veg")}</span>', unsafe_allow_html=True)
 
-            tab_upload, tab_manual = st.tabs(["📷 Upload Image", "⌨️ Type / Select"])
+            tab_upload, tab_manual = st.tabs([f"📷 {t('tab_upload_image')}", f"⌨️ {t('tab_type_select')}"])
 
             with tab_upload:
-                uploaded = st.file_uploader("Upload a photo of a vegetable", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+                uploaded = st.file_uploader(t("upload_label"), type=["jpg", "jpeg", "png"], label_visibility="collapsed")
                 if uploaded:
                     img = Image.open(uploaded).convert("RGB")
                     st.session_state.veg_image = img
-                    st.image(img, caption="Uploaded image", use_container_width=True)
-                    if st.button("🔍 Identify Vegetable", key="identify_btn"):
+                    st.image(img, caption=t("caption_uploaded"), use_container_width=True)
+                    if st.button(f"🔍 {t('btn_identify')}", key="identify_btn"):
                         if not gm.is_configured():
-                            st.error("Gemini API key not configured.")
+                            st.error(t("err_gemini_not_configured"))
                         else:
-                            with st.spinner("Looking closely at your vegetable..."):
+                            with st.spinner(t("msg_looking")):
                                 try:
                                     detected = gm.identify_vegetable_from_image(img)
                                     st.session_state.detected_veg = detected
-                                    st.success(f"Detected: **{detected}**")
+                                    st.success(t("msg_detected", name=detected))
                                 except Exception as e:
-                                    st.error(f"Couldn't identify the image: {e}")
+                                    st.error(t("err_identify_failed", error=e))
 
             with tab_manual:
                 manual_input = st.text_input(
-                    "Vegetable names (comma separated)",
+                    t("label_manual_veg"),
                     value=st.session_state.detected_veg,
-                    placeholder="e.g. spinach, tomato, bell pepper",
+                    placeholder=t("placeholder_manual_veg"),
                 )
                 common_veggies = st.multiselect(
-                    "...or pick from common vegetables",
+                    t("label_pick_common"),
                     ["Potato", "Spinach", "Tomato", "Carrot", "Broccoli", "Cauliflower", "Bell Pepper",
                      "Zucchini", "Eggplant", "Onion", "Mushroom", "Peas", "Pumpkin", "Okra", "Cabbage"],
                 )
@@ -361,7 +398,7 @@ def page_generate():
                     st.session_state.detected_veg = manual_input
 
             st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-            cuisine_choice = st.selectbox("Preferred cuisine style", CUISINES)
+            cuisine_choice = st.selectbox(t("label_cuisine_style"), CUISINES)
 
             final_veggies = []
             if st.session_state.detected_veg:
@@ -373,18 +410,15 @@ def page_generate():
             if final_veggies:
                 st.markdown("".join(f'<span class="pill green">{v}</span>' for v in final_veggies), unsafe_allow_html=True)
 
-            generate_clicked = st.button("✨ Generate Recipe", key="generate_btn", use_container_width=True)
+            generate_clicked = st.button(f"✨ {t('btn_generate')}", key="generate_btn", use_container_width=True)
 
     with col_preview:
         with card(accent=True):
-            st.markdown('<span class="eyebrow">🍽 What You\'ll Get</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="eyebrow">🍽 {t("eyebrow_what_get")}</span>', unsafe_allow_html=True)
             st.markdown(
-                """
+                f"""
                 <div style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7;">
-                A complete, chef-crafted recipe card including ingredients, step-by-step
-                instructions, prep &amp; cook time, calories, difficulty, nutrition facts,
-                chef tips, ingredient substitutions, and storage guidance — saved straight
-                to your personal recipe journal.
+                {t('desc_what_get')}
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -392,17 +426,18 @@ def page_generate():
 
     if generate_clicked:
         if not final_veggies:
-            st.error("Please upload an image or enter/select at least one vegetable.")
+            st.error(t("err_no_veggies"))
         elif not gm.is_configured():
-            st.error("GEMINI_API_KEY is not configured. Set it in your environment to generate recipes.")
+            st.error(t("err_gemini_not_configured2"))
         else:
-            with st.spinner("Simmering up your recipe..."):
+            with st.spinner(t("msg_simmering")):
                 try:
-                    recipe = gm.generate_recipe(final_veggies, cuisine_choice)
+                    recipe_language = LANGUAGES[st.session_state.language]["gemini_name"]
+                    recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language)
                     st.session_state.current_recipe = recipe
-                    st.success("Your recipe is ready!")
+                    st.success(t("msg_recipe_ready"))
                 except Exception as e:
-                    st.error(f"Recipe generation failed: {e}")
+                    st.error(t("err_recipe_failed", error=e))
 
     if st.session_state.current_recipe:
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
@@ -410,66 +445,68 @@ def page_generate():
 
         save_col, discard_col = st.columns([1, 1])
         with save_col:
-            if st.button("💾 Save to Journal", key="save_recipe_btn", use_container_width=True):
+            if st.button(f"💾 {t('btn_save_journal')}", key="save_recipe_btn", use_container_width=True):
                 recipe_to_save = dict(st.session_state.current_recipe)
                 if st.session_state.veg_image is not None:
                     recipe_to_save["image_data"] = image_to_b64(st.session_state.veg_image)
                 rid = db.save_recipe(st.session_state.user["id"], recipe_to_save)
-                st.success("Saved to your recipe history! 🎉")
+                st.success(t("msg_saved"))
                 st.session_state.current_recipe = None
                 st.session_state.veg_image = None
                 st.session_state.detected_veg = ""
                 time.sleep(0.6)
                 st.rerun()
         with discard_col:
-            if st.button("✕ Discard", key="discard_recipe_btn", use_container_width=True):
+            if st.button(f"✕ {t('btn_discard')}", key="discard_recipe_btn", use_container_width=True):
                 st.session_state.current_recipe = None
                 st.rerun()
     else:
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-        empty_state("🍲", "No recipe yet", "Upload a vegetable photo or type a few names, then hit Generate.")
+        empty_state("🍲", t("empty_no_recipe_title"), t("empty_no_recipe_sub"))
 
 
 # ----------------------------------------------------------- history page -
 
 def page_history():
     st.markdown(
-        """
+        f"""
         <div class="top-header">
-            <div><div class="kicker">Your Journal</div><h1>Recipe History</h1></div>
+            <div><div class="kicker">{t('kicker_journal')}</div><h1>{t('title_history')}</h1></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     user_id = st.session_state.user["id"]
-    cuisines = ["All"] + db.get_distinct_cuisines(user_id)
+    cuisines = [t("option_all")] + db.get_distinct_cuisines(user_id)
 
     fcol1, fcol2, fcol3 = st.columns([2, 1, 1])
     with fcol1:
-        search = st.text_input("🔍 Search by title or vegetable", key="history_search")
+        search = st.text_input(f"🔍 {t('search_placeholder')}", key="history_search")
     with fcol2:
-        cuisine_filter = st.selectbox("Cuisine", cuisines, key="history_cuisine")
+        cuisine_filter = st.selectbox(t("label_cuisine_filter"), cuisines, key="history_cuisine")
     with fcol3:
-        difficulty_filter = st.selectbox("Difficulty", ["All", "Easy", "Medium", "Hard"], key="history_difficulty")
+        difficulty_filter = st.selectbox(t("label_difficulty_filter"), [t("option_all"), "Easy", "Medium", "Hard"], key="history_difficulty")
 
-    recipes = db.get_user_recipes(user_id, search, cuisine_filter, difficulty_filter)
+    db_cuisine_filter = "All" if cuisine_filter == t("option_all") else cuisine_filter
+    db_difficulty_filter = "All" if difficulty_filter == t("option_all") else difficulty_filter
+    recipes = db.get_user_recipes(user_id, search, db_cuisine_filter, db_difficulty_filter)
 
     if not recipes:
-        empty_state("📭", "No recipes found", "Try a different search or generate your first recipe.")
+        empty_state("📭", t("empty_no_recipes_title"), t("empty_no_recipes_sub"))
         return
 
     if st.session_state.selected_recipe_id:
         selected = next((r for r in recipes if r["id"] == st.session_state.selected_recipe_id), None) or db.get_recipe(st.session_state.selected_recipe_id)
         if selected:
-            if st.button("← Back to all recipes", key="back_btn"):
+            if st.button(f"← {t('btn_back')}", key="back_btn"):
                 st.session_state.selected_recipe_id = None
                 st.rerun()
             render_recipe(selected, recipe_id=selected["id"], user_id=user_id)
-            if st.button("🗑 Delete Recipe", key="delete_btn"):
+            if st.button(f"🗑 {t('btn_delete')}", key="delete_btn"):
                 db.delete_recipe(selected["id"], user_id)
                 st.session_state.selected_recipe_id = None
-                st.success("Recipe deleted.")
+                st.success(t("msg_recipe_deleted"))
                 time.sleep(0.4)
                 st.rerun()
         return
@@ -488,7 +525,7 @@ def page_history():
                     f'<span class="pill">⏱ {r.get("prep_time","")}</span>',
                     unsafe_allow_html=True,
                 )
-                if st.button("View Recipe →", key=f"view_{r['id']}", use_container_width=True):
+                if st.button(t("btn_view_recipe"), key=f"view_{r['id']}", use_container_width=True):
                     st.session_state.selected_recipe_id = r["id"]
                     st.rerun()
 
@@ -497,9 +534,9 @@ def page_history():
 
 def page_favorites():
     st.markdown(
-        """
+        f"""
         <div class="top-header">
-            <div><div class="kicker">Loved & Saved</div><h1>Favorite Recipes</h1></div>
+            <div><div class="kicker">{t('kicker_loved')}</div><h1>{t('title_favorites')}</h1></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -508,7 +545,7 @@ def page_favorites():
     favs = db.get_favorite_recipes(user_id)
 
     if not favs:
-        empty_state("💚", "No favorites yet", "Tap the heart on any recipe in your history to save it here.")
+        empty_state("💚", t("empty_no_favorites_title"), t("empty_no_favorites_sub"))
         return
 
     cols = st.columns(3)
@@ -519,7 +556,7 @@ def page_favorites():
                     st.markdown(b64_to_image_html(r["image_data"]), unsafe_allow_html=True)
                 st.markdown(f'<span class="eyebrow">{r.get("cuisine","")}</span>', unsafe_allow_html=True)
                 st.markdown(f'<div class="recipe-title" style="font-size:1.1rem;">{r["title"]}</div>', unsafe_allow_html=True)
-                if st.button("View Recipe →", key=f"favview_{r['id']}", use_container_width=True):
+                if st.button(t("btn_view_recipe"), key=f"favview_{r['id']}", use_container_width=True):
                     st.session_state.page = "history"
                     st.session_state.selected_recipe_id = r["id"]
                     st.rerun()
@@ -532,9 +569,9 @@ def page_profile():
     stats = db.get_user_stats(user["id"])
 
     st.markdown(
-        """
+        f"""
         <div class="top-header">
-            <div><div class="kicker">Your Kitchen</div><h1>Profile</h1></div>
+            <div><div class="kicker">{t('kicker_kitchen')}</div><h1>{t('title_profile')}</h1></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -547,14 +584,14 @@ def page_profile():
             st.markdown(f'<div class="avatar-badge">{initials}</div>', unsafe_allow_html=True)
             st.markdown(f'<div style="margin-top:0.8rem; font-weight:700; font-size:1.1rem; color:var(--text-primary);">{user["username"]}</div>', unsafe_allow_html=True)
             st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem;">{user["email"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.4rem;">Member since {user["created_at"][:10]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.4rem;">{t("member_since", date=user["created_at"][:10])}</div>', unsafe_allow_html=True)
 
     with top_col2:
         s1, s2, s3 = st.columns(3)
         stat_data = [
-            (s1, stats["total_recipes"], "Recipes Generated"),
-            (s2, stats["total_favorites"], "Favorites Saved"),
-            (s3, stats["unique_cuisines"], "Cuisines Explored"),
+            (s1, stats["total_recipes"], t("stat_recipes")),
+            (s2, stats["total_favorites"], t("stat_favorites")),
+            (s3, stats["unique_cuisines"], t("stat_cuisines")),
         ]
         for col, num, label in stat_data:
             with col:
@@ -563,10 +600,10 @@ def page_profile():
                     st.markdown(f'<div class="stat-label">{label}</div>', unsafe_allow_html=True)
 
     st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-    st.markdown('<span class="eyebrow">🕰 Recently Generated</span>', unsafe_allow_html=True)
+    st.markdown(f'<span class="eyebrow">🕰 {t("eyebrow_recent")}</span>', unsafe_allow_html=True)
     recent = db.get_user_recipes(user["id"])[:5]
     if not recent:
-        empty_state("🌱", "Nothing here yet", "Your generated recipes will show up in this timeline.")
+        empty_state("🌱", t("empty_no_recent_title"), t("empty_no_recent_sub"))
     else:
         for r in recent:
             st.markdown(
