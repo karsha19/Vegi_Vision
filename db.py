@@ -76,7 +76,7 @@ def init_db():
         """)
 
 
-# ---------------------------------------------------------------- auth ----
+# auth 
 
 def _hash_password(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
@@ -112,7 +112,7 @@ def get_user_by_id(user_id: int):
     return dict(row) if row else None
 
 
-# ------------------------------------------------------------- recipes ----
+# recipes
 
 def save_recipe(user_id: int, recipe: dict) -> int:
     with get_conn() as conn:
@@ -192,7 +192,7 @@ def get_distinct_cuisines(user_id: int):
     return sorted({r["cuisine"] for r in rows})
 
 
-# ------------------------------------------------------------ favorites ----
+#  favorites 
 
 def toggle_favorite(user_id: int, recipe_id: int) -> bool:
     """Returns True if now favorited, False if removed."""

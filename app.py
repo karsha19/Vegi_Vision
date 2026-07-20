@@ -1,9 +1,4 @@
-"""
-app.py
-------
-Vegetable Recipe Maker — an editorial / bento-grid Streamlit app powered
-by Gemini + SQLite. Run with: streamlit run app.py
-"""
+
 
 import os
 import base64
@@ -15,6 +10,7 @@ from dotenv import load_dotenv
 
 import db
 import gemini_helper as gm
+import voice_assistant as va
 from styles import get_theme_css, FONT_IMPORT
 from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 
@@ -32,7 +28,7 @@ db.init_db()
 CUISINES = ["Any", "Italian", "Indian", "Thai", "Mexican", "Mediterranean", "Chinese", "American", "French", "Middle Eastern"]
 
 
-# ------------------------------------------------------------- session ----
+
 
 def init_session():
     defaults = {
@@ -70,7 +66,6 @@ def inject_css():
 inject_css()
 
 
-# ------------------------------------------------------------ helpers -----
 
 def image_to_b64(img: Image.Image) -> str:
     buf = io.BytesIO()
@@ -102,15 +97,7 @@ from contextlib import contextmanager
 
 @contextmanager
 def card(accent=False):
-    """A real bento-style card.
-
-    Uses st.container(border=True) so everything written inside the
-    `with` block is *actually* nested inside the card in the DOM (unlike
-    hand-rolling a <div> across two separate st.markdown() calls, which
-    Streamlit does not nest and which renders as an empty floating pill).
-    A tiny hidden marker lets styles.py find and restyle this exact
-    container via a CSS :has() selector.
-    """
+    
     with st.container(border=True):
         tag_class = "card-tag-accent" if accent else "card-tag"
         st.markdown(f'<div class="{tag_class}"></div>', unsafe_allow_html=True)
@@ -125,7 +112,6 @@ def mini_card():
         yield
 
 
-# --------------------------------------------------------------- auth -----
 
 def auth_screen():
     top_l, top_r = st.columns([4, 1])
@@ -202,7 +188,6 @@ def auth_screen():
                                 st.error(t("err_username_exists"))
 
 
-# ------------------------------------------------------------ sidebar -----
 
 def sidebar():
     with st.sidebar:
@@ -264,7 +249,7 @@ def sidebar():
             )
 
 
-# --------------------------------------------------------- recipe card ----
+
 
 def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True):
     is_fav = db.is_favorite(user_id, recipe_id) if (recipe_id and user_id) else False
@@ -342,7 +327,7 @@ def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True
                         st.markdown(f'<div class="step-text">• {s}</div>', unsafe_allow_html=True)
 
 
-# --------------------------------------------------------- generate page --
+
 
 def page_generate():
     st.markdown(
@@ -363,7 +348,11 @@ def page_generate():
         with card():
             st.markdown(f'<span class="eyebrow">🥦 {t("eyebrow_choose_veg")}</span>', unsafe_allow_html=True)
 
-            tab_upload, tab_manual = st.tabs([f"📷 {t('tab_upload_image')}", f"⌨️ {t('tab_type_select')}"])
+            tab_upload, tab_manual, tab_voice = st.tabs([
+                f"📷 {t('tab_upload_image')}",
+                f"⌨️ {t('tab_type_select')}",
+                f"🎙️ {t('tab_voice_input')}",
+            ])
 
             with tab_upload:
                 uploaded = st.file_uploader(t("upload_label"), type=["jpg", "jpeg", "png"], label_visibility="collapsed")
@@ -397,6 +386,9 @@ def page_generate():
                 if manual_input:
                     st.session_state.detected_veg = manual_input
 
+            with tab_voice:
+                va.render_voice_input()
+
             st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
             cuisine_choice = st.selectbox(t("label_cuisine_style"), CUISINES)
 
@@ -405,7 +397,7 @@ def page_generate():
                 final_veggies.extend([v.strip() for v in st.session_state.detected_veg.split(",") if v.strip()])
             if "common_veggies" in dir() and common_veggies:
                 final_veggies.extend(common_veggies)
-            final_veggies = list(dict.fromkeys(final_veggies))  # dedupe, preserve order
+            final_veggies = list(dict.fromkeys(final_veggies))  
 
             if final_veggies:
                 st.markdown("".join(f'<span class="pill green">{v}</span>' for v in final_veggies), unsafe_allow_html=True)
@@ -433,7 +425,8 @@ def page_generate():
             with st.spinner(t("msg_simmering")):
                 try:
                     recipe_language = LANGUAGES[st.session_state.language]["gemini_name"]
-                    recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language)
+                    voice_context = st.session_state.get("voice_raw_text") or None
+                    recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language, extra_context=voice_context)
                     st.session_state.current_recipe = recipe
                     st.success(t("msg_recipe_ready"))
                 except Exception as e:
@@ -454,18 +447,20 @@ def page_generate():
                 st.session_state.current_recipe = None
                 st.session_state.veg_image = None
                 st.session_state.detected_veg = ""
+                va.reset_voice_state()
                 time.sleep(0.6)
                 st.rerun()
         with discard_col:
             if st.button(f"✕ {t('btn_discard')}", key="discard_recipe_btn", use_container_width=True):
                 st.session_state.current_recipe = None
+                va.reset_voice_state()
                 st.rerun()
     else:
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
         empty_state("🍲", t("empty_no_recipe_title"), t("empty_no_recipe_sub"))
 
 
-# ----------------------------------------------------------- history page -
+
 
 def page_history():
     st.markdown(
@@ -511,7 +506,7 @@ def page_history():
                 st.rerun()
         return
 
-    # bento grid of recipe cards, 3 per row
+    
     cols = st.columns(3)
     for idx, r in enumerate(recipes):
         with cols[idx % 3]:
@@ -530,7 +525,7 @@ def page_history():
                     st.rerun()
 
 
-# ---------------------------------------------------------- favorites page
+
 
 def page_favorites():
     st.markdown(
@@ -562,7 +557,6 @@ def page_favorites():
                     st.rerun()
 
 
-# ------------------------------------------------------------ profile page
 
 def page_profile():
     user = st.session_state.user
@@ -620,7 +614,6 @@ def page_profile():
             )
 
 
-# ------------------------------------------------------------------ main --
 
 def main():
     if st.session_state.user is None:

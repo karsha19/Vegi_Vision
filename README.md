@@ -17,6 +17,13 @@ grid cooking magazine rather than a default Streamlit dashboard.
   message updates instantly, and Gemini writes the *recipe content itself*
   in the selected language. Arabic automatically switches the whole layout
   to right-to-left.
+- **Voice Recipe Assistant** — a "🎙️ Voice Input" tab next to Upload Image
+  and Type/Select. Tap the mic, speak a request ("potatoes, onions, and
+  tomatoes" or "a healthy spinach recipe"), and the recognized text lands
+  in an editable field — same generation pipeline as typed input, so it
+  saves to SQLite exactly like any other recipe. Handles no-speech,
+  unclear-speech, and service-down cases with friendly messages, and shows
+  a live status badge (Processing.../Got it!/error).
 - Save recipes to your personal journal (SQLite)
 - Recipe History with search + cuisine/difficulty filters
 - Favorites (heart toggle)
@@ -32,6 +39,7 @@ veggie_recipe_maker/
 ├── app.py              # Streamlit UI, page routing, bento layout
 ├── db.py                # SQLite schema + all persistence functions
 ├── gemini_helper.py      # Gemini API calls (image ID + recipe generation)
+├── voice_assistant.py     # Speech-to-text: mic capture, transcription, status UI
 ├── styles.py             # All custom CSS as one theme-aware string
 ├── translations.py       # i18n: all UI strings, one dict per language
 ├── requirements.txt
@@ -78,3 +86,14 @@ The SQLite database (`veggie_recipes.db`) is created automatically on first run.
   `{placeholder}` tokens exactly as they are), and add an entry for it in
   `LANGUAGES` at the top of the file. Nothing else needs to change — the rest
   of the app only ever calls `t("some_key")`.
+- **Voice input** runs speech-to-text via `SpeechRecognition`'s free Google
+  Web Speech API backend, which requires outbound internet access from
+  wherever you run the app. The microphone itself is captured in the
+  *browser* (via the `streamlit-mic-recorder` component), not on the
+  server, so this also works correctly when the app is deployed remotely —
+  it does not try to open a microphone device on the server machine. If
+  `SpeechRecognition` or `streamlit-mic-recorder` aren't installed, the
+  Voice Input tab shows a friendly notice instead of crashing; typing and
+  image upload keep working normally. To swap in Whisper (e.g. for offline
+  use) later, only `transcribe_wav_bytes()` in `voice_assistant.py` needs
+  to change.

@@ -1,39 +1,4 @@
-"""
-styles.py
----------
-Centralized theme system for Verdant.
 
-Every color in the app is driven by CSS custom properties defined here in
-ONE place. Components never hardcode hex values, `white`, `#fff`, `#000`,
-etc. — they reference a semantic variable (--text-primary, --card,
---border, ...) and get the correct value automatically for whichever mode
-(light/dark) is active. Toggling dark mode simply swaps the variable
-values in :root; nothing else in the app needs to change.
-
-Semantic variable contract (used everywhere, in this file and in app.py):
-
-    --background        page background
-    --surface            secondary background (sidebar, alt sections)
-    --card                card / panel background
-    --card-hover          card background on hover
-    --primary             brand green (buttons, active states, accents)
-    --primary-hover        brand green, hover/pressed state
-    --primary-soft         low-opacity tint of primary (badges, highlights)
-    --secondary-accent      warm brown accent (eyebrows, secondary pills)
-    --text-primary          headings / high-emphasis text
-    --text-secondary        body copy
-    --text-muted             captions, helper text, timestamps
-    --text-on-primary        text placed on top of a --primary background
-    --border                 default border color
-    --border-strong          higher-contrast border (inputs, dropzone)
-    --input-bg                background for inputs/selects/textareas
-    --placeholder              input placeholder text
-    --shadow                   card / elevation shadow
-    --shadow-strong             stronger shadow (modals, popovers)
-    --success / --error / --warning / --info    status colors (toasts/alerts)
-    --success-bg / --error-bg / --warning-bg / --info-bg   status backgrounds
-    --focus-ring                 focus outline color for accessibility
-"""
 
 FONT_IMPORT = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,16 +8,11 @@ FONT_IMPORT = """
 
 
 def get_theme_css(dark_mode: bool) -> str:
-    """Return the full <style> block for the requested mode.
-
-    All actual color values live in exactly two palettes below. Nothing
-    downstream (this file's component rules, or app.py) ever repeats a
-    hex code — everything consumes the semantic variables.
-    """
+   
 
     if dark_mode:
         palette = f"""
-        /* ---------------- DARK MODE PALETTE ---------------- */
+      
         --background: #12170f;
         --surface: #1a201a;
         --card: #202822;
@@ -147,7 +107,7 @@ def get_theme_css(dark_mode: bool) -> str:
         text-decoration: underline;
     }}
 
-    /* ---------- Sidebar ---------- */
+  
     section[data-testid="stSidebar"] {{
         background: var(--surface);
         border-right: 1px solid var(--border);
@@ -202,14 +162,7 @@ def get_theme_css(dark_mode: bool) -> str:
         outline-offset: 2px;
     }}
 
-    /* ---------- Generic card ----------
-       Cards are real st.container(border=True) blocks (see card() in
-       app.py), so content actually nests inside them. We restyle
-       Streamlit's own wrapper element rather than hand-rolling a <div>
-       across two separate st.markdown() calls, which cannot nest
-       Streamlit widgets between them and rendered as empty floating
-       pills. A tiny invisible .card-tag marker lets CSS :has() find the
-       right wrapper and style variants (accent / tight). */
+    
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
@@ -255,7 +208,7 @@ def get_theme_css(dark_mode: bool) -> str:
         margin-top: 0.3rem;
     }}
 
-    /* ---------- Pills / badges ---------- */
+
     .pill {{
         display: inline-block;
         background: var(--surface);
@@ -284,7 +237,7 @@ def get_theme_css(dark_mode: bool) -> str:
         margin: 0.9rem 0;
     }}
 
-    /* ---------- Recipe steps ---------- */
+ 
     .step-row {{
         display: flex;
         gap: 0.8rem;
@@ -322,7 +275,7 @@ def get_theme_css(dark_mode: bool) -> str:
     }}
     .ingredient-row:last-child {{ border-bottom: none; }}
 
-    /* ---------- Buttons (main content) ---------- */
+   
     .stButton > button {{
         background: var(--primary);
         color: var(--text-on-primary) !important;
@@ -357,7 +310,7 @@ def get_theme_css(dark_mode: bool) -> str:
         background: var(--primary-hover);
     }}
 
-    /* ---------- Text inputs / selects / textareas ---------- */
+    
     div[data-baseweb="input"],
     div[data-baseweb="select"] > div,
     div[data-baseweb="base-input"],
@@ -390,13 +343,13 @@ def get_theme_css(dark_mode: bool) -> str:
         font-size: 0.85rem;
     }}
 
-    /* Selected chips inside multiselect */
+  
     span[data-baseweb="tag"] {{
         background: var(--primary) !important;
         color: var(--text-on-primary) !important;
     }}
 
-    /* Dropdown menu / popover (rendered in a portal) */
+    
     ul[data-testid="stSelectboxVirtualDropdown"],
     div[data-baseweb="popover"] ul {{
         background: var(--card) !important;
@@ -412,7 +365,7 @@ def get_theme_css(dark_mode: bool) -> str:
         background: var(--primary-soft) !important;
     }}
 
-    /* ---------- Tabs ---------- */
+
     .stTabs [data-baseweb="tab-list"] {{
         gap: 0.4rem;
         border-bottom: 1px solid var(--border);
@@ -439,7 +392,7 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--primary) !important;
     }}
 
-    /* ---------- File uploader / upload box ---------- */
+    
     section[data-testid="stFileUploaderDropzone"] {{
         background: var(--surface) !important;
         border: 1.5px dashed var(--secondary-accent) !important;
@@ -457,7 +410,7 @@ def get_theme_css(dark_mode: bool) -> str:
         border: 1px solid var(--border-strong) !important;
     }}
 
-    /* ---------- Alerts / toasts (st.success, st.error, st.warning, st.info) ---------- */
+
     div[data-testid="stAlert"] {{
         border-radius: 14px;
         border: 1px solid var(--border);
@@ -473,7 +426,6 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--text-primary) !important;
     }}
 
-    /* ---------- Modals / dialogs ---------- */
     div[data-testid="stDialog"] > div {{
         background: var(--card) !important;
         border: 1px solid var(--border);
@@ -489,7 +441,6 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--text-primary) !important;
     }}
 
-    /* ---------- Empty state ---------- */
     .empty-state {{
         text-align: center;
         padding: 3rem 1.5rem;
@@ -506,7 +457,7 @@ def get_theme_css(dark_mode: bool) -> str:
         margin-bottom: 0.3rem;
     }}
 
-    /* ---------- Page header ---------- */
+   
     .top-header {{
         display: flex;
         justify-content: space-between;
@@ -526,7 +477,7 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--text-primary) !important;
     }}
 
-    /* ---------- Recipe / history / favorites mini cards ----------
+
        Same real-container approach as the main card system above. */
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag-mini) {{
         background: var(--card) !important;
@@ -553,7 +504,7 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--text-primary) !important;
     }}
 
-    /* ---------- Profile avatar ---------- */
+
     .avatar-badge {{
         width: 54px;
         height: 54px;
@@ -569,7 +520,7 @@ def get_theme_css(dark_mode: bool) -> str:
         border: 1px solid var(--border);
     }}
 
-    /* ---------- Footer (reserved for future use) ---------- */
+ 
     .app-footer {{
         color: var(--text-muted) !important;
         font-size: 0.78rem;
@@ -582,12 +533,72 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--secondary-accent) !important;
     }}
 
-    /* ---------- Icons inherit currentColor ---------- */
+
     svg {{
         color: inherit;
     }}
 
-    /* ---------- Focus visibility everywhere ---------- */
+
+    .voice-status {{
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-secondary) !important;
+        margin: 0.6rem 0;
+    }}
+    .status-dot {{
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        flex-shrink: 0;
+    }}
+    .voice-status-idle .status-dot {{
+        background: var(--text-muted);
+    }}
+    .voice-status-processing {{
+        background: var(--info-bg);
+        border-color: transparent;
+        color: var(--info) !important;
+    }}
+    .voice-status-processing .status-dot {{
+        background: var(--info);
+        animation: voice-pulse 1s ease-in-out infinite;
+    }}
+    .voice-status-done {{
+        background: var(--success-bg);
+        border-color: transparent;
+        color: var(--success) !important;
+    }}
+    .voice-status-done .status-dot {{
+        background: var(--success);
+    }}
+    .voice-status-error {{
+        background: var(--error-bg);
+        border-color: transparent;
+        color: var(--error) !important;
+    }}
+    .voice-status-error .status-dot {{
+        background: var(--error);
+    }}
+    @keyframes voice-pulse {{
+        0%   {{ transform: scale(1);   opacity: 1;   }}
+        50%  {{ transform: scale(1.6); opacity: 0.55; }}
+        100% {{ transform: scale(1);   opacity: 1;   }}
+    }}
+   
+    iframe[title="streamlit_mic_recorder.mic_recorder"] {{
+        border-radius: 14px;
+    }}
+
+
     a:focus-visible,
     button:focus-visible,
     input:focus-visible,

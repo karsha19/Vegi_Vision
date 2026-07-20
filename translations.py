@@ -12,8 +12,6 @@ app.py only ever calls t("some_key").
 
 import streamlit as st
 
-# Languages available in the sidebar switcher.
-# "rtl": True flips text direction for that language (currently Arabic).
 LANGUAGES = {
     "en": {"name": "English", "flag": "🇺🇸", "gemini_name": "English", "rtl": False},
     "hi": {"name": "हिन्दी", "flag": "🇮🇳", "gemini_name": "Hindi", "rtl": False},
@@ -1035,10 +1033,7 @@ TRANSLATIONS = {
 
 
 def t(key: str, **kwargs) -> str:
-    """Look up `key` in the active language, falling back to English,
-    then to the raw key itself so a missing translation never crashes
-    the app — it just shows in English or as the literal key.
-    """
+   
     lang = st.session_state.get("language", DEFAULT_LANGUAGE)
     text = TRANSLATIONS.get(lang, {}).get(key) or TRANSLATIONS[DEFAULT_LANGUAGE].get(key) or key
     if kwargs:
