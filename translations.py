@@ -1,15 +1,3 @@
-"""
-translations.py
-----------------
-Centralized i18n for Verdant. One dictionary per language, one lookup
-function `t(key, **kwargs)` used everywhere in app.py instead of
-hardcoded English strings.
-
-Adding a new language: copy the "en" block, translate every value, add
-its entry to LANGUAGES below. Nothing else in the app needs to change —
-app.py only ever calls t("some_key").
-"""
-
 import streamlit as st
 
 LANGUAGES = {

@@ -1,21 +1,3 @@
-"""
-gemini_helper.py
-----------------
-Thin wrapper around the Gemini API for:
-  1. Identifying a vegetable from an uploaded image.
-  2. Generating a full structured recipe (JSON) from a list of vegetables.
-
-The API key is read from the GEMINI_API_KEY environment variable —
-never hard-coded, never displayed in the UI.
-
-Uses the current `google-genai` SDK (the `google.genai.Client` API).
-The older `google-generativeai` package (`genai.configure()` +
-`genai.GenerativeModel(...)`) has been end-of-lifed by Google and no
-longer works reliably — see
-https://github.com/google-gemini/deprecated-generative-ai-python — so
-this module intentionally does not use it.
-"""
-
 import os
 import json
 import re

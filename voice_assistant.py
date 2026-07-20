@@ -1,29 +1,3 @@
-"""
-voice_assistant.py
--------------------
-Voice Recipe Assistant: lets the user speak their vegetables / recipe
-request instead of typing them.
-
-Architecture notes (why it's built this way):
-
-  * The app runs as a Streamlit *web* app, so the microphone belongs to
-    the user's browser, not the Python server. We capture audio with the
-    `streamlit-mic-recorder` component (a small browser widget that
-    records via the browser's MediaRecorder API and hands the finished
-    clip back to Python as WAV bytes) rather than a server-side library
-    like PyAudio, which would try to open a microphone on the *server*
-    machine and fail (or record the wrong device) in any real deployment.
-  * Speech-to-text itself is handled by the `SpeechRecognition` library
-    using Google's free Web Speech API backend (`recognize_google`), as
-    suggested in the brief. Swapping this for Whisper later only means
-    changing `transcribe_wav_bytes()` below — nothing else in the app
-    needs to change.
-  * Everything here is self-contained and side-effect-free except for
-    `render_voice_input()`, which is the one function app.py calls; it
-    owns its own small slice of st.session_state so the rest of the app
-    doesn't need to know how voice input works internally.
-"""
-
 import io
 import streamlit as st
 from translations import t

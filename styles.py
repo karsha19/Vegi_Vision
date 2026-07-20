@@ -39,7 +39,7 @@ def get_theme_css(dark_mode: bool) -> str:
         """
     else:
         palette = f"""
-        /* ---------------- LIGHT MODE PALETTE ---------------- */
+        
         --background: #f7f2e7;
         --surface: #f0e9da;
         --card: #ffffff;
@@ -88,7 +88,7 @@ def get_theme_css(dark_mode: bool) -> str:
         color: var(--text-secondary);
     }}
 
-    /* ---------- Typography ---------- */
+    /* Typography  */
     h1, h2, h3, h4, h5, h6, .headline {{
         font-family: 'Fraunces', serif;
         color: var(--text-primary);
@@ -478,7 +478,7 @@ def get_theme_css(dark_mode: bool) -> str:
     }}
 
 
-       Same real-container approach as the main card system above. */
+     
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag-mini) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;

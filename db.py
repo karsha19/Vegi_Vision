@@ -1,11 +1,3 @@
-"""
-db.py
------
-All SQLite persistence for the Vegetable Recipe Maker lives here:
-users, recipes, favorites. Every function is small and reusable so
-app.py stays a thin UI layer.
-"""
-
 import sqlite3
 import json
 import hashlib
