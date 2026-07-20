@@ -67,6 +67,7 @@ inject_css()
 
 
 
+
 def image_to_b64(img: Image.Image) -> str:
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -97,7 +98,7 @@ from contextlib import contextmanager
 
 @contextmanager
 def card(accent=False):
-    
+   
     with st.container(border=True):
         tag_class = "card-tag-accent" if accent else "card-tag"
         st.markdown(f'<div class="{tag_class}"></div>', unsafe_allow_html=True)
@@ -112,6 +113,7 @@ def mini_card():
         yield
 
 
+#  auth 
 
 def auth_screen():
     top_l, top_r = st.columns([4, 1])
@@ -188,6 +190,7 @@ def auth_screen():
                                 st.error(t("err_username_exists"))
 
 
+# sidebar 
 
 def sidebar():
     with st.sidebar:
@@ -249,7 +252,7 @@ def sidebar():
             )
 
 
-
+# recipe card 
 
 def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True):
     is_fav = db.is_favorite(user_id, recipe_id) if (recipe_id and user_id) else False
@@ -327,7 +330,7 @@ def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True
                         st.markdown(f'<div class="step-text">• {s}</div>', unsafe_allow_html=True)
 
 
-
+# generate page 
 
 def page_generate():
     st.markdown(
@@ -397,7 +400,7 @@ def page_generate():
                 final_veggies.extend([v.strip() for v in st.session_state.detected_veg.split(",") if v.strip()])
             if "common_veggies" in dir() and common_veggies:
                 final_veggies.extend(common_veggies)
-            final_veggies = list(dict.fromkeys(final_veggies))  
+            final_veggies = list(dict.fromkeys(final_veggies))  # dedupe, preserve order
 
             if final_veggies:
                 st.markdown("".join(f'<span class="pill green">{v}</span>' for v in final_veggies), unsafe_allow_html=True)
@@ -506,7 +509,7 @@ def page_history():
                 st.rerun()
         return
 
-    
+  
     cols = st.columns(3)
     for idx, r in enumerate(recipes):
         with cols[idx % 3]:
@@ -523,7 +526,6 @@ def page_history():
                 if st.button(t("btn_view_recipe"), key=f"view_{r['id']}", use_container_width=True):
                     st.session_state.selected_recipe_id = r["id"]
                     st.rerun()
-
 
 
 
@@ -555,6 +557,7 @@ def page_favorites():
                     st.session_state.page = "history"
                     st.session_state.selected_recipe_id = r["id"]
                     st.rerun()
+
 
 
 
@@ -612,6 +615,7 @@ def page_profile():
                 """,
                 unsafe_allow_html=True,
             )
+
 
 
 
