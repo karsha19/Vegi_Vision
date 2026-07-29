@@ -1,644 +1,3 @@
-# import os
-# import base64
-# import io
-# import time
-# import streamlit as st
-# from PIL import Image
-# from dotenv import load_dotenv
-
-# import db
-# import gemini_helper as gm
-# import voice_assistant as va
-# from styles import get_theme_css, FONT_IMPORT
-# from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
-
-# load_dotenv()
-
-# st.set_page_config(
-#     page_title="VegiVision — Vegetable Recipe Maker",
-#     page_icon="🌿",
-#     layout="wide",
-#     initial_sidebar_state="expanded",
-# )
-
-# db.init_db()
-
-# CUISINES = ["Any", "Italian", "Indian", "Thai", "Mexican", "Mediterranean", "Chinese", "American", "French", "Middle Eastern"]
-
-
-
-
-# def init_session():
-#     defaults = {
-#         "user": None,
-#         "page": "generate",
-#         "dark_mode": False,
-#         "auth_mode": "login",
-#         "current_recipe": None,
-#         "selected_recipe_id": None,
-#         "veg_image": None,
-#         "detected_veg": "",
-#         "language": DEFAULT_LANGUAGE,
-#     }
-#     for k, v in defaults.items():
-#         if k not in st.session_state:
-#             st.session_state[k] = v
-
-
-# init_session()
-
-
-# def inject_css():
-#     st.markdown(FONT_IMPORT, unsafe_allow_html=True)
-#     st.markdown(get_theme_css(st.session_state.dark_mode), unsafe_allow_html=True)
-#     if current_language_meta().get("rtl"):
-#         st.markdown(
-#             """<style>
-#             .stApp, .stApp * { direction: rtl; }
-#             div[data-testid="stSidebar"] .stButton > button:hover { transform: translateX(-3px); }
-#             </style>""",
-#             unsafe_allow_html=True,
-#         )
-
-
-# inject_css()
-
-
-
-
-# def image_to_b64(img: Image.Image) -> str:
-#     buf = io.BytesIO()
-#     img.save(buf, format="PNG")
-#     return base64.b64encode(buf.getvalue()).decode()
-
-
-# def b64_to_image_html(b64: str, height="180px") -> str:
-#     if not b64:
-#         return ""
-#     return f'<img src="data:image/png;base64,{b64}" style="width:100%;height:{height};object-fit:cover;border-radius:16px;margin-bottom:0.7rem;" />'
-
-
-# def empty_state(icon: str, title: str, subtitle: str):
-#     st.markdown(
-#         f"""
-#         <div class="empty-state">
-#             <div class="icon">{icon}</div>
-#             <div class="title">{title}</div>
-#             <div>{subtitle}</div>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-
-
-# from contextlib import contextmanager
-
-
-# @contextmanager
-# def card(accent=False):
-   
-#     with st.container(border=True):
-#         tag_class = "card-tag-accent" if accent else "card-tag"
-#         st.markdown(f'<div class="{tag_class}"></div>', unsafe_allow_html=True)
-#         yield
-
-
-# @contextmanager
-# def mini_card():
-#     """A smaller card used for recipe grid tiles in History / Favorites."""
-#     with st.container(border=True):
-#         st.markdown('<div class="card-tag-mini"></div>', unsafe_allow_html=True)
-#         yield
-
-
-# #  auth 
-
-# def auth_screen():
-#     top_l, top_r = st.columns([4, 1])
-#     with top_r:
-#         lang_codes = list(LANGUAGES.keys())
-#         lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
-#         current_idx = lang_codes.index(st.session_state.language)
-#         chosen = st.selectbox(
-#             t("language_label"), lang_labels, index=current_idx, key="auth_lang_select", label_visibility="collapsed"
-#         )
-#         chosen_code = lang_codes[lang_labels.index(chosen)]
-#         if chosen_code != st.session_state.language:
-#             st.session_state.language = chosen_code
-#             st.rerun()
-
-#     st.markdown(
-#         f"""
-#         <div style="text-align:center; margin-top:1rem; margin-bottom:1rem;">
-#             <div style="font-family:'Fraunces',serif; font-size:2.4rem; font-weight:700;">🌿 {t('app_brand')}</div>
-#             <div style="color:var(--text-muted); letter-spacing:0.12em; text-transform:uppercase; font-size:0.78rem;">
-#                 {t('auth_subtitle')}
-#             </div>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-
-#     col_a, col_center, col_b = st.columns([1, 1.2, 1])
-#     with col_center:
-#         with card(accent=True):
-#             tabs = st.tabs([t("tab_signin"), t("tab_register")])
-
-#             with tabs[0]:
-#                 with st.form("login_form"):
-#                     username = st.text_input(t("label_username"))
-#                     password = st.text_input(t("label_password"), type="password")
-#                     submitted = st.form_submit_button(t("btn_signin"))
-#                     if submitted:
-#                         if not username or not password:
-#                             st.error(t("err_fill_both"))
-#                         else:
-#                             with st.spinner(t("msg_checking")):
-#                                 time.sleep(0.4)
-#                                 user = db.verify_user(username, password)
-#                             if user:
-#                                 st.session_state.user = user
-#                                 st.success(t("msg_welcome_back", name=user["username"]))
-#                                 time.sleep(0.5)
-#                                 st.rerun()
-#                             else:
-#                                 st.error(t("err_invalid_creds"))
-
-#             with tabs[1]:
-#                 with st.form("register_form"):
-#                     new_username = st.text_input(t("label_choose_username"))
-#                     new_email = st.text_input(t("label_email"))
-#                     new_password = st.text_input(t("label_choose_password"), type="password")
-#                     confirm_password = st.text_input(t("label_confirm_password"), type="password")
-#                     submitted = st.form_submit_button(t("btn_register"))
-#                     if submitted:
-#                         if not all([new_username, new_email, new_password]):
-#                             st.error(t("err_fill_all"))
-#                         elif new_password != confirm_password:
-#                             st.error(t("err_pw_mismatch"))
-#                         elif len(new_password) < 6:
-#                             st.error(t("err_pw_short"))
-#                         else:
-#                             with st.spinner(t("msg_setting_up")):
-#                                 time.sleep(0.4)
-#                                 ok, msg = db.create_user(new_username, new_email, new_password)
-#                             if ok:
-#                                 st.success(t("msg_account_created"))
-#                             else:
-#                                 st.error(t("err_username_exists"))
-
-
-# # sidebar 
-
-# def sidebar():
-#     with st.sidebar:
-#         st.markdown(f'<div class="brand-mark">🌿 {t("app_brand")}</div>', unsafe_allow_html=True)
-#         st.markdown(f'<div class="brand-sub">{t("app_tagline")}</div>', unsafe_allow_html=True)
-
-#         nav_items = [
-#             ("generate", "✨", "nav_generate"),
-#             ("history", "📖", "nav_history"),
-#             ("favorites", "❤️", "nav_favorites"),
-#             ("profile", "🪴", "nav_profile"),
-#         ]
-#         for key, icon, label_key in nav_items:
-#             if st.button(f"{icon}  {t(label_key)}", key=f"nav_{key}", use_container_width=True):
-#                 st.session_state.page = key
-#                 st.rerun()
-
-#         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-
-#         mode_label = f"☀️  {t('theme_light')}" if st.session_state.dark_mode else f"🌙  {t('theme_dark')}"
-#         if st.button(mode_label, key="toggle_theme", use_container_width=True):
-#             st.session_state.dark_mode = not st.session_state.dark_mode
-#             st.rerun()
-
-#         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-
-#         lang_codes = list(LANGUAGES.keys())
-#         lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
-#         current_idx = lang_codes.index(st.session_state.language)
-#         st.markdown(f'<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.3rem;">🌐 {t("language_label")}</div>', unsafe_allow_html=True)
-#         chosen = st.selectbox(
-#             t("language_label"), lang_labels, index=current_idx, key="sidebar_lang_select", label_visibility="collapsed"
-#         )
-#         chosen_code = lang_codes[lang_labels.index(chosen)]
-#         if chosen_code != st.session_state.language:
-#             st.session_state.language = chosen_code
-#             st.rerun()
-
-#         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-#         st.markdown(
-#             f"""
-#             <div style="font-size:0.85rem; color:var(--text-secondary);">
-#                 {t('signed_in_as')}<br><b>{st.session_state.user['username']}</b>
-#             </div>
-#             """,
-#             unsafe_allow_html=True,
-#         )
-#         if st.button(f"↩  {t('logout')}", key="logout_btn", use_container_width=True):
-#             st.session_state.user = None
-#             st.session_state.page = "generate"
-#             st.rerun()
-
-#         if not gm.is_configured():
-#             st.markdown(
-#                 f'<div style="margin-top:1rem; font-size:0.75rem; color:var(--error);">'
-#                 f'⚠ {t("api_key_warning")}'
-#                 f'</div>',
-#                 unsafe_allow_html=True,
-#             )
-
-
-# # recipe card 
-
-# def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True):
-#     is_fav = db.is_favorite(user_id, recipe_id) if (recipe_id and user_id) else False
-
-#     with card():
-#         header_col, fav_col = st.columns([5, 1])
-#         with header_col:
-#             st.markdown(f'<span class="eyebrow">{recipe.get("cuisine","")} · {recipe.get("difficulty","")}</span>', unsafe_allow_html=True)
-#             st.markdown(f'<div class="recipe-title">{recipe.get("title","Untitled Recipe")}</div>', unsafe_allow_html=True)
-#         with fav_col:
-#             if show_favorite and recipe_id and user_id:
-#                 fav_icon = "💚" if is_fav else "🤍"
-#                 if st.button(fav_icon, key=f"fav_{recipe_id}"):
-#                     db.toggle_favorite(user_id, recipe_id)
-#                     st.rerun()
-
-#         pills = []
-#         for label_key, key in [("label_prep", "prep_time"), ("label_cook", "cook_time"), ("label_serves", "servings"), ("label_calories", "calories")]:
-#             val = recipe.get(key)
-#             if val:
-#                 pills.append(f'<span class="pill">{t(label_key)}: {val}</span>')
-#         st.markdown("".join(pills), unsafe_allow_html=True)
-
-#     col1, col2 = st.columns([1, 1.3])
-
-#     with col1:
-#         with card():
-#             st.markdown(f'<span class="eyebrow">🥕 {t("eyebrow_ingredients")}</span>', unsafe_allow_html=True)
-#             ingredients = recipe.get("ingredients", [])
-#             if ingredients:
-#                 rows = "".join(f'<div class="ingredient-row">• {i}</div>' for i in ingredients)
-#                 st.markdown(rows, unsafe_allow_html=True)
-#             else:
-#                 st.caption(t("no_ingredients"))
-
-#         nutrition = recipe.get("nutrition", {})
-#         if nutrition:
-#             with card():
-#                 st.markdown(f'<span class="eyebrow">📊 {t("eyebrow_nutrition")}</span>', unsafe_allow_html=True)
-#                 pills = "".join(f'<span class="pill brown">{k.title()}: {v}</span>' for k, v in nutrition.items())
-#                 st.markdown(pills, unsafe_allow_html=True)
-
-#         storage = recipe.get("storage", "")
-#         if storage:
-#             with card():
-#                 st.markdown(f'<span class="eyebrow">🧊 {t("eyebrow_storage")}</span>', unsafe_allow_html=True)
-#                 st.markdown(f'<div style="color:var(--text-secondary); font-size:0.9rem;">{storage}</div>', unsafe_allow_html=True)
-
-#     with col2:
-#         with card():
-#             st.markdown(f'<span class="eyebrow">👩‍🍳 {t("eyebrow_instructions")}</span>', unsafe_allow_html=True)
-#             steps = recipe.get("instructions", [])
-#             for idx, step in enumerate(steps, start=1):
-#                 st.markdown(
-#                     f"""
-#                     <div class="step-row">
-#                         <div class="step-num">{idx}</div>
-#                         <div class="step-text">{step}</div>
-#                     </div>
-#                     """,
-#                     unsafe_allow_html=True,
-#                 )
-
-#         tips = recipe.get("tips", [])
-#         subs = recipe.get("substitutions", [])
-#         if tips or subs:
-#             with card():
-#                 if tips:
-#                     st.markdown(f'<span class="eyebrow">💡 {t("eyebrow_tips")}</span>', unsafe_allow_html=True)
-#                     for tip in tips:
-#                         st.markdown(f'<div class="step-text">• {tip}</div>', unsafe_allow_html=True)
-#                 if subs:
-#                     st.markdown(f'<span class="eyebrow" style="margin-top:0.8rem;">🔄 {t("eyebrow_substitutions")}</span>', unsafe_allow_html=True)
-#                     for s in subs:
-#                         st.markdown(f'<div class="step-text">• {s}</div>', unsafe_allow_html=True)
-
-
-# # generate page 
-
-# def page_generate():
-#     st.markdown(
-#         f"""
-#         <div class="top-header">
-#             <div>
-#                 <div class="kicker">{t('kicker_today')}</div>
-#                 <h1>{t('title_generate')}</h1>
-#             </div>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-
-#     col_input, col_preview = st.columns([1.3, 1])
-
-#     with col_input:
-#         with card():
-#             st.markdown(f'<span class="eyebrow">🥦 {t("eyebrow_choose_veg")}</span>', unsafe_allow_html=True)
-
-#             tab_upload, tab_manual, tab_voice = st.tabs([
-#                 f"📷 {t('tab_upload_image')}",
-#                 f"⌨️ {t('tab_type_select')}",
-#                 f"🎙️ {t('tab_voice_input')}",
-#             ])
-
-#             with tab_upload:
-#                 uploaded = st.file_uploader(t("upload_label"), type=["jpg", "jpeg", "png"], label_visibility="collapsed")
-#                 if uploaded:
-#                     img = Image.open(uploaded).convert("RGB")
-#                     st.session_state.veg_image = img
-#                     st.image(img, caption=t("caption_uploaded"), use_container_width=True)
-#                     if st.button(f"🔍 {t('btn_identify')}", key="identify_btn"):
-#                         if not gm.is_configured():
-#                             st.error(t("err_gemini_not_configured"))
-#                         else:
-#                             with st.spinner(t("msg_looking")):
-#                                 try:
-#                                     detected = gm.identify_vegetable_from_image(img)
-#                                     st.session_state.detected_veg = detected
-#                                     st.success(t("msg_detected", name=detected))
-#                                 except Exception as e:
-#                                     st.error(t("err_identify_failed", error=e))
-
-#             with tab_manual:
-#                 manual_input = st.text_input(
-#                     t("label_manual_veg"),
-#                     value=st.session_state.detected_veg,
-#                     placeholder=t("placeholder_manual_veg"),
-#                 )
-#                 common_veggies = st.multiselect(
-#                     t("label_pick_common"),
-#                     ["Potato", "Spinach", "Tomato", "Carrot", "Broccoli", "Cauliflower", "Bell Pepper",
-#                      "Zucchini", "Eggplant", "Onion", "Mushroom", "Peas", "Pumpkin", "Okra", "Cabbage"],
-#                 )
-#                 if manual_input:
-#                     st.session_state.detected_veg = manual_input
-
-#             with tab_voice:
-#                 va.render_voice_input()
-
-#             st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-#             cuisine_choice = st.selectbox(t("label_cuisine_style"), CUISINES)
-
-#             final_veggies = []
-#             if st.session_state.detected_veg:
-#                 final_veggies.extend([v.strip() for v in st.session_state.detected_veg.split(",") if v.strip()])
-#             if "common_veggies" in dir() and common_veggies:
-#                 final_veggies.extend(common_veggies)
-#             final_veggies = list(dict.fromkeys(final_veggies))  # dedupe, preserve order
-
-#             if final_veggies:
-#                 st.markdown("".join(f'<span class="pill green">{v}</span>' for v in final_veggies), unsafe_allow_html=True)
-
-#             generate_clicked = st.button(f"✨ {t('btn_generate')}", key="generate_btn", use_container_width=True)
-
-#     with col_preview:
-#         with card(accent=True):
-#             st.markdown(f'<span class="eyebrow">🍽 {t("eyebrow_what_get")}</span>', unsafe_allow_html=True)
-#             st.markdown(
-#                 f"""
-#                 <div style="color:var(--text-secondary); font-size:0.9rem; line-height:1.7;">
-#                 {t('desc_what_get')}
-#                 </div>
-#                 """,
-#                 unsafe_allow_html=True,
-#             )
-
-#     if generate_clicked:
-#         if not final_veggies:
-#             st.error(t("err_no_veggies"))
-#         elif not gm.is_configured():
-#             st.error(t("err_gemini_not_configured2"))
-#         else:
-#             with st.spinner(t("msg_simmering")):
-#                 try:
-#                     recipe_language = LANGUAGES[st.session_state.language]["gemini_name"]
-#                     voice_context = st.session_state.get("voice_raw_text") or None
-#                     recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language, extra_context=voice_context)
-#                     st.session_state.current_recipe = recipe
-#                     st.success(t("msg_recipe_ready"))
-#                 except Exception as e:
-#                     st.error(t("err_recipe_failed", error=e))
-
-#     if st.session_state.current_recipe:
-#         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-#         render_recipe(st.session_state.current_recipe, show_favorite=False)
-
-#         save_col, discard_col = st.columns([1, 1])
-#         with save_col:
-#             if st.button(f"💾 {t('btn_save_journal')}", key="save_recipe_btn", use_container_width=True):
-#                 recipe_to_save = dict(st.session_state.current_recipe)
-#                 if st.session_state.veg_image is not None:
-#                     recipe_to_save["image_data"] = image_to_b64(st.session_state.veg_image)
-#                 rid = db.save_recipe(st.session_state.user["id"], recipe_to_save)
-#                 st.success(t("msg_saved"))
-#                 st.session_state.current_recipe = None
-#                 st.session_state.veg_image = None
-#                 st.session_state.detected_veg = ""
-#                 va.reset_voice_state()
-#                 time.sleep(0.6)
-#                 st.rerun()
-#         with discard_col:
-#             if st.button(f"✕ {t('btn_discard')}", key="discard_recipe_btn", use_container_width=True):
-#                 st.session_state.current_recipe = None
-#                 va.reset_voice_state()
-#                 st.rerun()
-#     else:
-#         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-#         empty_state("🍲", t("empty_no_recipe_title"), t("empty_no_recipe_sub"))
-
-
-
-
-# def page_history():
-#     st.markdown(
-#         f"""
-#         <div class="top-header">
-#             <div><div class="kicker">{t('kicker_journal')}</div><h1>{t('title_history')}</h1></div>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-
-#     user_id = st.session_state.user["id"]
-#     cuisines = [t("option_all")] + db.get_distinct_cuisines(user_id)
-
-#     fcol1, fcol2, fcol3 = st.columns([2, 1, 1])
-#     with fcol1:
-#         search = st.text_input(f"🔍 {t('search_placeholder')}", key="history_search")
-#     with fcol2:
-#         cuisine_filter = st.selectbox(t("label_cuisine_filter"), cuisines, key="history_cuisine")
-#     with fcol3:
-#         difficulty_filter = st.selectbox(t("label_difficulty_filter"), [t("option_all"), "Easy", "Medium", "Hard"], key="history_difficulty")
-
-#     db_cuisine_filter = "All" if cuisine_filter == t("option_all") else cuisine_filter
-#     db_difficulty_filter = "All" if difficulty_filter == t("option_all") else difficulty_filter
-#     recipes = db.get_user_recipes(user_id, search, db_cuisine_filter, db_difficulty_filter)
-
-#     if not recipes:
-#         empty_state("📭", t("empty_no_recipes_title"), t("empty_no_recipes_sub"))
-#         return
-
-#     if st.session_state.selected_recipe_id:
-#         selected = next((r for r in recipes if r["id"] == st.session_state.selected_recipe_id), None) or db.get_recipe(st.session_state.selected_recipe_id)
-#         if selected:
-#             if st.button(f"← {t('btn_back')}", key="back_btn"):
-#                 st.session_state.selected_recipe_id = None
-#                 st.rerun()
-#             render_recipe(selected, recipe_id=selected["id"], user_id=user_id)
-#             if st.button(f"🗑 {t('btn_delete')}", key="delete_btn"):
-#                 db.delete_recipe(selected["id"], user_id)
-#                 st.session_state.selected_recipe_id = None
-#                 st.success(t("msg_recipe_deleted"))
-#                 time.sleep(0.4)
-#                 st.rerun()
-#         return
-
-  
-#     cols = st.columns(3)
-#     for idx, r in enumerate(recipes):
-#         with cols[idx % 3]:
-#             with mini_card():
-#                 if r.get("image_data"):
-#                     st.markdown(b64_to_image_html(r["image_data"]), unsafe_allow_html=True)
-#                 st.markdown(f'<span class="eyebrow">{r.get("cuisine","")}</span>', unsafe_allow_html=True)
-#                 st.markdown(f'<div class="recipe-title" style="font-size:1.1rem;">{r["title"]}</div>', unsafe_allow_html=True)
-#                 st.markdown(
-#                     f'<span class="pill">{r.get("difficulty","")}</span>'
-#                     f'<span class="pill">⏱ {r.get("prep_time","")}</span>',
-#                     unsafe_allow_html=True,
-#                 )
-#                 if st.button(t("btn_view_recipe"), key=f"view_{r['id']}", use_container_width=True):
-#                     st.session_state.selected_recipe_id = r["id"]
-#                     st.rerun()
-
-
-
-# def page_favorites():
-#     st.markdown(
-#         f"""
-#         <div class="top-header">
-#             <div><div class="kicker">{t('kicker_loved')}</div><h1>{t('title_favorites')}</h1></div>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-#     user_id = st.session_state.user["id"]
-#     favs = db.get_favorite_recipes(user_id)
-
-#     if not favs:
-#         empty_state("💚", t("empty_no_favorites_title"), t("empty_no_favorites_sub"))
-#         return
-
-#     cols = st.columns(3)
-#     for idx, r in enumerate(favs):
-#         with cols[idx % 3]:
-#             with mini_card():
-#                 if r.get("image_data"):
-#                     st.markdown(b64_to_image_html(r["image_data"]), unsafe_allow_html=True)
-#                 st.markdown(f'<span class="eyebrow">{r.get("cuisine","")}</span>', unsafe_allow_html=True)
-#                 st.markdown(f'<div class="recipe-title" style="font-size:1.1rem;">{r["title"]}</div>', unsafe_allow_html=True)
-#                 if st.button(t("btn_view_recipe"), key=f"favview_{r['id']}", use_container_width=True):
-#                     st.session_state.page = "history"
-#                     st.session_state.selected_recipe_id = r["id"]
-#                     st.rerun()
-
-
-
-
-# def page_profile():
-#     user = st.session_state.user
-#     stats = db.get_user_stats(user["id"])
-
-#     st.markdown(
-#         f"""
-#         <div class="top-header">
-#             <div><div class="kicker">{t('kicker_kitchen')}</div><h1>{t('title_profile')}</h1></div>
-#         </div>
-#         """,
-#         unsafe_allow_html=True,
-#     )
-
-#     top_col1, top_col2 = st.columns([1, 3])
-#     with top_col1:
-#         with card():
-#             initials = user["username"][:2].upper()
-#             st.markdown(f'<div class="avatar-badge">{initials}</div>', unsafe_allow_html=True)
-#             st.markdown(f'<div style="margin-top:0.8rem; font-weight:700; font-size:1.1rem; color:var(--text-primary);">{user["username"]}</div>', unsafe_allow_html=True)
-#             st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem;">{user["email"]}</div>', unsafe_allow_html=True)
-#             st.markdown(f'<div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.4rem;">{t("member_since", date=user["created_at"][:10])}</div>', unsafe_allow_html=True)
-
-#     with top_col2:
-#         s1, s2, s3 = st.columns(3)
-#         stat_data = [
-#             (s1, stats["total_recipes"], t("stat_recipes")),
-#             (s2, stats["total_favorites"], t("stat_favorites")),
-#             (s3, stats["unique_cuisines"], t("stat_cuisines")),
-#         ]
-#         for col, num, label in stat_data:
-#             with col:
-#                 with card(accent=True):
-#                     st.markdown(f'<div class="stat-num">{num}</div>', unsafe_allow_html=True)
-#                     st.markdown(f'<div class="stat-label">{label}</div>', unsafe_allow_html=True)
-
-#     st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-#     st.markdown(f'<span class="eyebrow">🕰 {t("eyebrow_recent")}</span>', unsafe_allow_html=True)
-#     recent = db.get_user_recipes(user["id"])[:5]
-#     if not recent:
-#         empty_state("🌱", t("empty_no_recent_title"), t("empty_no_recent_sub"))
-#     else:
-#         for r in recent:
-#             st.markdown(
-#                 f"""
-#                 <div class="recipe-card-mini" style="display:flex; justify-content:space-between; align-items:center;">
-#                     <div>
-#                         <div style="font-weight:700;">{r['title']}</div>
-#                         <div style="color:var(--text-muted); font-size:0.8rem;">{r.get('cuisine','')} · {r['created_at'][:10]}</div>
-#                     </div>
-#                     <div class="pill">{r.get('difficulty','')}</div>
-#                 </div>
-#                 """,
-#                 unsafe_allow_html=True,
-#             )
-
-
-
-
-# def main():
-#     if st.session_state.user is None:
-#         auth_screen()
-#         return
-
-#     sidebar()
-
-#     page = st.session_state.page
-#     if page == "generate":
-#         page_generate()
-#     elif page == "history":
-#         page_history()
-#     elif page == "favorites":
-#         page_favorites()
-#     elif page == "profile":
-#         page_profile()
-
-
-# if __name__ == "__main__":
-#     main()
-
-
 import os
 import base64
 import io
@@ -682,6 +41,7 @@ def init_session():
         "veg_image": None,
         "detected_veg": "",
         "language": DEFAULT_LANGUAGE,
+        "sidebar_collapsed": False,         
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -702,7 +62,89 @@ def inject_css():
             </style>""",
             unsafe_allow_html=True,
         )
-
+    
+    st.markdown(
+        """
+        <style>
+        /* Force sidebar visible */
+        [data-testid="stSidebar"],
+        section[data-testid="stSidebar"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 240px !important;
+            min-width: 240px !important;
+        }
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+        }
+        /* Sidebar styling */
+        section[data-testid="stSidebar"] {
+            background: var(--surface) !important;
+            border-right: 1px solid var(--border) !important;
+            padding-top: 1.5rem !important;
+        }
+        section[data-testid="stSidebar"] .block-container {
+            padding: 0.5rem 1rem !important;
+        }
+        /* Sidebar nav buttons */
+        div[data-testid="stSidebar"] .stButton > button {
+            width: 100% !important;
+            text-align: left !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 10px !important;
+            padding: 0.6rem 1rem !important;
+            font-size: 0.97rem !important;
+            font-weight: 500 !important;
+            color: var(--text-secondary) !important;
+            transition: all 0.18s ease !important;
+            margin-bottom: 0.2rem !important;
+        }
+        div[data-testid="stSidebar"] .stButton > button:hover {
+            background: var(--primary-soft) !important;
+            color: var(--primary) !important;
+            transform: translateX(3px) !important;
+        }
+        .sidebar-brand {
+            font-family: 'Fraunces', serif;
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            padding: 0.3rem 0.5rem 1.2rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .sidebar-section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0.8rem 0.5rem 0.3rem 0.5rem;
+        }
+        .sidebar-user-card {
+            background: var(--primary-soft);
+            border-radius: 12px;
+            padding: 0.7rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+        }
+        .sidebar-user-card strong {
+            color: var(--text-primary);
+            display: block;
+            font-size: 0.95rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 inject_css()
 
@@ -754,117 +196,7 @@ def mini_card():
         yield
 
 
-#  sidebar toggle (custom, version-independent) 
 
-SIDEBAR_TOGGLE_JS = """
-<script>
-(function () {
-    const doc = window.parent.document;
-
-    function isCollapsed() {
-        return doc.body.classList.contains('vgv-sidebar-collapsed');
-    }
-
-    function applyState(collapsed) {
-        doc.body.classList.toggle('vgv-sidebar-collapsed', collapsed);
-        const btn = doc.getElementById('vgv-sidebar-toggle-btn');
-        if (btn) {
-            btn.innerHTML = collapsed ? '&#8594;' : '&#8592;';
-            btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-            btn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-        }
-    }
-
-    function toggle() {
-        applyState(!isCollapsed());
-    }
-
-    // Create the fixed toggle button once; it survives Streamlit reruns.
-    if (!doc.getElementById('vgv-sidebar-toggle-btn')) {
-        const btn = doc.createElement('button');
-        btn.id = 'vgv-sidebar-toggle-btn';
-        btn.type = 'button';
-        btn.innerHTML = isCollapsed() ? '&#8594;' : '&#8592;';
-        btn.setAttribute('aria-label', 'Toggle sidebar');
-        btn.addEventListener('click', toggle);
-        doc.body.appendChild(btn);
-    }
-
-    // Inject the supporting styles once.
-    if (!doc.getElementById('vgv-sidebar-toggle-style')) {
-        const style = doc.createElement('style');
-        style.id = 'vgv-sidebar-toggle-style';
-        style.textContent = `
-            #vgv-sidebar-toggle-btn {
-                position: fixed !important;
-                top: 0.9rem;
-                left: 0.6rem;
-                z-index: 9999 !important;
-                width: 42px;
-                height: 42px;
-                border-radius: 10px;
-                border: 1px solid var(--border, #d8d3c8);
-                background: var(--surface, #ffffff);
-                color: var(--text-primary, #2a2a2a);
-                font-size: 1.15rem;
-                line-height: 1;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-                transition: transform 0.2s ease, background 0.2s ease;
-            }
-            #vgv-sidebar-toggle-btn:hover {
-                transform: scale(1.08);
-            }
-            #vgv-sidebar-toggle-btn:active {
-                transform: scale(0.95);
-            }
-            section[data-testid="stSidebar"] {
-                transition: margin-left 0.32s cubic-bezier(0.4,0,0.2,1),
-                            width 0.32s cubic-bezier(0.4,0,0.2,1),
-                            min-width 0.32s cubic-bezier(0.4,0,0.2,1) !important;
-            }
-            body.vgv-sidebar-collapsed section[data-testid="stSidebar"] {
-                margin-left: -26rem !important;
-                width: 0 !important;
-                min-width: 0 !important;
-                overflow: hidden !important;
-                pointer-events: none !important;
-            }
-            /* Hide Streamlit's built-in collapse controls; our button fully replaces them
-               so there is always exactly one, reliable, always-visible toggle. */
-            div[data-testid="stSidebarCollapsedControl"],
-            button[data-testid="stSidebarCollapseButton"],
-            [data-testid="collapsedControl"] {
-                display: none !important;
-            }
-            @media (max-width: 768px) {
-                #vgv-sidebar-toggle-btn {
-                    top: 0.6rem;
-                    left: 0.5rem;
-                    width: 38px;
-                    height: 38px;
-                    font-size: 1rem;
-                }
-                body.vgv-sidebar-collapsed section[data-testid="stSidebar"] {
-                    margin-left: -100vw !important;
-                }
-            }
-        `;
-        doc.head.appendChild(style);
-    }
-})();
-</script>
-"""
-
-
-def inject_sidebar_toggle():
-    """Renders a fixed, always-visible arrow button (top-left) that collapses/expands
-    the sidebar with a smooth animation. Implemented independently of Streamlit's
-    internal sidebar-control markup so it keeps working across Streamlit versions."""
-    components.html(SIDEBAR_TOGGLE_JS, height=0, width=0)
 
 
 #  auth 
@@ -944,13 +276,29 @@ def auth_screen():
                                 st.error(t("err_username_exists"))
 
 
-# sidebar 
+# sidebar
 
 def sidebar():
     with st.sidebar:
-        st.markdown(f'<div class="brand-mark">🌿 {t("app_brand")}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="brand-sub">{t("app_tagline")}</div>', unsafe_allow_html=True)
+        # Brand
+        st.markdown(
+            f'<div class="sidebar-brand">🌿 {t("app_brand")}</div>',
+            unsafe_allow_html=True,
+        )
 
+        # User card
+        if st.session_state.user:
+            username = st.session_state.user["username"]
+            st.markdown(
+                f'<div class="sidebar-user-card">'
+                f'<strong>👤 {username}</strong>'
+                f'{t("signed_in_as")} {username}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        # Navigation
+        st.markdown('<div class="sidebar-section-label">Navigation</div>', unsafe_allow_html=True)
         nav_items = [
             ("generate", "✨", "nav_generate"),
             ("history", "📖", "nav_history"),
@@ -958,53 +306,49 @@ def sidebar():
             ("profile", "🪴", "nav_profile"),
         ]
         for key, icon, label_key in nav_items:
-            if st.button(f"{icon}  {t(label_key)}", key=f"nav_{key}", use_container_width=True):
+            is_active = st.session_state.page == key
+            label = f"{icon}  {t(label_key)}"
+            if is_active:
+                label = f"**{label}**"
+            if st.button(label, key=f"sidebar_nav_{key}", use_container_width=True):
                 st.session_state.page = key
                 st.rerun()
 
-        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+        st.markdown("---")
 
-        mode_label = f"☀️  {t('theme_light')}" if st.session_state.dark_mode else f"🌙  {t('theme_dark')}"
-        if st.button(mode_label, key="toggle_theme", use_container_width=True):
+        # Theme Toggle
+        st.markdown('<div class="sidebar-section-label">Settings</div>', unsafe_allow_html=True)
+        mode_label = "☀️  Light Mode" if st.session_state.dark_mode else "🌙  Dark Mode"
+        if st.button(mode_label, key="sidebar_toggle_theme", use_container_width=True):
             st.session_state.dark_mode = not st.session_state.dark_mode
             st.rerun()
 
-        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-
+        # Language Selector
         lang_codes = list(LANGUAGES.keys())
         lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
         current_idx = lang_codes.index(st.session_state.language)
-        st.markdown(f'<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.3rem;">🌐 {t("language_label")}</div>', unsafe_allow_html=True)
         chosen = st.selectbox(
-            t("language_label"), lang_labels, index=current_idx, key="sidebar_lang_select", label_visibility="collapsed"
+            t("language_label"),
+            lang_labels,
+            index=current_idx,
+            key="sidebar_lang_select",
         )
         chosen_code = lang_codes[lang_labels.index(chosen)]
         if chosen_code != st.session_state.language:
             st.session_state.language = chosen_code
             st.rerun()
 
-        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-        st.markdown(
-            f"""
-            <div style="font-size:0.85rem; color:var(--text-secondary);">
-                {t('signed_in_as')}<br><b>{st.session_state.user['username']}</b>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if st.button(f"↩  {t('logout')}", key="logout_btn", use_container_width=True):
+        st.markdown("---")
+
+        # API Key warning
+        if not gm.is_configured():
+            st.warning(f"⚠ {t('api_key_warning')}")
+
+        # Logout
+        if st.button(f"↩  Logout", key="sidebar_logout_btn", use_container_width=True):
             st.session_state.user = None
             st.session_state.page = "generate"
             st.rerun()
-
-        if not gm.is_configured():
-            st.markdown(
-                f'<div style="margin-top:1rem; font-size:0.75rem; color:var(--error);">'
-                f'⚠ {t("api_key_warning")}'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
 
 # recipe card 
 
@@ -1391,12 +735,32 @@ def page_profile():
 
 def main():
     if st.session_state.user is None:
+        # Hide sidebar completely on the login/auth page
+        st.markdown(
+            """
+            <style>
+            section[data-testid="stSidebar"],
+            [data-testid="stSidebar"],
+            [data-testid="stSidebarCollapseButton"],
+            [data-testid="collapsedControl"] {
+                display: none !important;
+                width: 0 !important;
+                min-width: 0 !important;
+            }
+            div[data-testid="stAppViewContainer"] {
+                padding-left: 0 !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
         auth_screen()
         return
 
+    # Logged-in: show sidebar
     sidebar()
-    inject_sidebar_toggle()
 
+ 
     page = st.session_state.page
     if page == "generate":
         page_generate()
