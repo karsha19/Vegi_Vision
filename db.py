@@ -230,3 +230,65 @@ def get_user_stats(user_id: int) -> dict:
             "SELECT COUNT(DISTINCT cuisine) c FROM recipes WHERE user_id = ? AND cuisine != ''", (user_id,)
         ).fetchone()["c"]
     return {"total_recipes": total, "total_favorites": favs, "unique_cuisines": cuisines}
+
+
+def get_user_by_id(user_id: int):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if row:
+            return dict(row)
+        return None
+
+# profile management
+
+def _migrate_users_table():
+    with get_conn() as conn:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "display_name" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT DEFAULT ''")
+        if "profile_picture" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN profile_picture TEXT DEFAULT ''")
+
+
+def update_user_profile(user_id: int, username: str, display_name: str, email: str, profile_picture=None):
+    try:
+        with get_conn() as conn:
+            if profile_picture is not None:
+                conn.execute(
+                    "UPDATE users SET username=?, display_name=?, email=?, profile_picture=? WHERE id=?",
+                    (username, display_name, email, profile_picture, user_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE users SET username=?, display_name=?, email=? WHERE id=?",
+                    (username, display_name, email, user_id),
+                )
+        return True, "Profile updated."
+    except sqlite3.IntegrityError:
+        return False, "Username or email already in use by another account."
+
+
+def update_user_password(user_id: int, current_password: str, new_password: str):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if row is None:
+        return False, "User not found."
+    if _hash_password(current_password, row["salt"]) != row["password_hash"]:
+        return False, "Current password is incorrect."
+    new_salt = os.urandom(16).hex()
+    new_hash = _hash_password(new_password, new_salt)
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=?, salt=? WHERE id=?",
+            (new_hash, new_salt, user_id),
+        )
+    return True, "Password changed successfully."
+
+
+def delete_user(user_id: int):
+    try:
+        with get_conn() as conn:
+            conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+        return True
+    except Exception:
+        return False

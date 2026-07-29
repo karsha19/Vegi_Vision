@@ -1,9 +1,7 @@
-import os
 import base64
 import io
 import time
 import streamlit as st
-import streamlit.components.v1 as components
 from PIL import Image
 from dotenv import load_dotenv
 
@@ -41,7 +39,9 @@ def init_session():
         "veg_image": None,
         "detected_veg": "",
         "language": DEFAULT_LANGUAGE,
-        "sidebar_collapsed": False,         
+        "sidebar_collapsed": False,
+        "editing_profile": False,
+        "delete_confirm": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -677,8 +677,29 @@ def page_favorites():
 
 def page_profile():
     user = st.session_state.user
-    stats = db.get_user_stats(user["id"])
+    user_id = user["id"]
+    # Initialize state
+    if "editing_profile" not in st.session_state:
+        st.session_state.editing_profile = False
+    if "password_changed" not in st.session_state:
+        st.session_state.password_changed = False
+    if "delete_confirm" not in st.session_state:
+        st.session_state.delete_confirm = False
 
+    # Fetch fresh user data from DB to ensure we have latest info (e.g., profile picture)
+    fresh_user = db.get_user_by_id(user_id)
+    if not fresh_user:
+        st.error("User not found.")
+        return
+    # Update session user with fresh data (excluding password hash/salt)
+    for key in ["username", "email", "display_name", "profile_picture", "created_at"]:
+        if key in fresh_user:
+            user[key] = fresh_user[key]
+    st.session_state.user = user
+
+    stats = db.get_user_stats(user_id)
+
+    # Header
     st.markdown(
         f"""
         <div class="top-header">
@@ -688,47 +709,177 @@ def page_profile():
         unsafe_allow_html=True,
     )
 
-    top_col1, top_col2 = st.columns([1, 3])
-    with top_col1:
-        with card():
-            initials = user["username"][:2].upper()
-            st.markdown(f'<div class="avatar-badge">{initials}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="margin-top:0.8rem; font-weight:700; font-size:1.1rem; color:var(--text-primary);">{user["username"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem;">{user["email"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.4rem;">{t("member_since", date=user["created_at"][:10])}</div>', unsafe_allow_html=True)
+    # Edit mode toggle
+    if not st.session_state.editing_profile:
+        # View mode
+        top_col1, top_col2 = st.columns([1, 3])
+        with top_col1:
+            with card():
+                # Profile picture
+                pic = user.get("profile_picture")
+                if pic:
+                    st.markdown(b64_to_image_html(pic, height="150px"), unsafe_allow_html=True)
+                else:
+                    # Show initials avatar
+                    initials = user["username"][:2].upper()
+                    st.markdown(f'<div class="avatar-badge" style="width:100px;height:100px;font-size:2.5rem;">{initials}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="margin-top:0.8rem; font-weight:700; font-size:1.1rem; color:var(--text-primary);">{user["username"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem;">{user["email"]}</div>', unsafe_allow_html=True)
+                if user.get("display_name"):
+                    st.markdown(f'<div style="color:var(--text-muted); font-size:0.9rem;">{user["display_name"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.4rem;">{t("member_since", date=user["created_at"][:10])}</div>', unsafe_allow_html=True)
+                if st.button(t("btn_edit_profile"), key="edit_profile_btn", use_container_width=True):
+                    st.session_state.editing_profile = True
+                    st.rerun()
 
-    with top_col2:
-        s1, s2, s3 = st.columns(3)
-        stat_data = [
-            (s1, stats["total_recipes"], t("stat_recipes")),
-            (s2, stats["total_favorites"], t("stat_favorites")),
-            (s3, stats["unique_cuisines"], t("stat_cuisines")),
-        ]
-        for col, num, label in stat_data:
-            with col:
-                with card(accent=True):
-                    st.markdown(f'<div class="stat-num">{num}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="stat-label">{label}</div>', unsafe_allow_html=True)
+        with top_col2:
+            s1, s2, s3 = st.columns(3)
+            stat_data = [
+                (s1, stats["total_recipes"], t("stat_recipes")),
+                (s2, stats["total_favorites"], t("stat_favorites")),
+                (s3, stats["unique_cuisines"], t("stat_cuisines")),
+            ]
+            for col, num, label in stat_data:
+                with col:
+                    with card(accent=True):
+                        st.markdown(f'<div class="stat-num">{num}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="stat-label">{label}</div>', unsafe_allow_html=True)
 
-    st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
-    st.markdown(f'<span class="eyebrow">🕰 {t("eyebrow_recent")}</span>', unsafe_allow_html=True)
-    recent = db.get_user_recipes(user["id"])[:5]
-    if not recent:
-        empty_state("🌱", t("empty_no_recent_title"), t("empty_no_recent_sub"))
-    else:
-        for r in recent:
-            st.markdown(
-                f"""
-                <div class="recipe-card-mini" style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-weight:700;">{r['title']}</div>
-                        <div style="color:var(--text-muted); font-size:0.8rem;">{r.get('cuisine','')} · {r['created_at'][:10]}</div>
+        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+        st.markdown(f'<span class="eyebrow">🕰 {t("eyebrow_recent")}</span>', unsafe_allow_html=True)
+        recent = db.get_user_recipes(user_id)[:5]
+        if not recent:
+            empty_state("🌱", t("empty_no_recent_title"), t("empty_no_recent_sub"))
+        else:
+            for r in recent:
+                st.markdown(
+                    f"""
+                    <div class="recipe-card-mini" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:700;">{r['title']}</div>
+                            <div style="color:var(--text-muted); font-size:0.8rem;">{r.get('cuisine','')} · {r['created_at'][:10]}</div>
+                        </div>
+                        <div class="pill">{r.get('difficulty','')}</div>
                     </div>
-                    <div class="pill">{r.get('difficulty','')}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        # Change Password section (always visible)
+        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+        st.markdown(f'<span class="eyebrow">🔐 {t("change_password")}</span>', unsafe_allow_html=True)
+        with card():
+            with st.form("change_password_form"):
+                current_pw = st.text_input(t("label_current_password"), type="password")
+                new_pw = st.text_input(t("label_new_password"), type="password")
+                confirm_pw = st.text_input(t("label_confirm_password"), type="password")
+                submitted = st.form_submit_button(t("btn_save_changes"))
+                if submitted:
+                    if not current_pw or not new_pw or not confirm_pw:
+                        st.error(t("err_fill_all"))
+                    elif new_pw != confirm_pw:
+                        st.error(t("err_pw_mismatch"))
+                    elif len(new_pw) < 6:
+                        st.error(t("err_pw_short"))
+                    else:
+                        ok, msg = db.update_user_password(user_id, current_pw, new_pw)
+                        if ok:
+                            st.success(msg)
+                            st.session_state.password_changed = True
+                            # Clear fields
+                        else:
+                            st.error(msg)
+
+        # Danger Zone
+        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+        st.markdown(f'<span class="eyebrow">⚠️ {t("danger_zone")}</span>', unsafe_allow_html=True)
+        with card():
+            if not st.session_state.delete_confirm:
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(t("btn_logout"), key="logout_btn", use_container_width=True):
+                        st.session_state.user = None
+                        st.session_state.page = "generate"
+                        st.rerun()
+                with col2:
+                    if st.button(t("btn_delete_account"), key="delete_account_btn", use_container_width=True, type="secondary"):
+                        st.session_state.delete_confirm = True
+                        st.rerun()
+            else:
+                st.warning(t("confirm_delete_account"))
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(t("btn_confirm_delete"), key="confirm_delete_btn", use_container_width=True):
+                        # Delete account
+                        success = db.delete_user(user_id)
+                        if success:
+                            st.success(t("account_deleted"))
+                            st.session_state.user = None
+                            st.session_state.page = "generate"
+                            st.rerun()
+                        else:
+                            st.error(t("error_deleting_account"))
+                with col2:
+                    if st.button(t("btn_cancel"), key="cancel_delete_btn", use_container_width=True):
+                        st.session_state.delete_confirm = False
+                        st.rerun()
+
+    else:
+        # Edit mode
+        st.markdown(f'<div class="top-header"><div><div class="kicker">{t('kicker_kitchen')}</div><h1>{t('title_profile')}</h1></div></div>', unsafe_allow_html=True)
+        with card():
+            st.subheader(t("edit_profile"))
+            # Profile picture upload
+            pic = user.get("profile_picture")
+            current_pic_bytes = None
+            if pic:
+                # Show current picture
+                st.markdown(b64_to_image_html(pic, height="150px"), unsafe_allow_html=True)
+                # Option to remove
+                if st.checkbox(t("remove_profile_picture")):
+                    current_pic_bytes = None  # will be saved as None
+                else:
+                    current_pic_bytes = pic
+            else:
+                st.info(t("no_profile_picture"))
+
+            uploaded_file = st.file_uploader(t("upload_profile_picture"), type=["jpg", "jpeg", "png"])
+            if uploaded_file is not None:
+                image = Image.open(uploaded_file).convert("RGB")
+                new_pic_b64 = image_to_b64(image)
+                # Update preview
+                st.image(image, caption=t("preview"), width=150)
+                pic_to_save = new_pic_b64
+            else:
+                pic_to_save = current_pic_bytes
+
+            # Form for username, display name, email
+            with st.form("edit_profile_form"):
+                username = st.text_input(t("label_username"), value=user.get("username", ""))
+                display_name = st.text_input(t("label_display_name"), value=user.get("display_name", ""))
+                email = st.text_input(t("label_email"), value=user.get("email", ""))
+                submitted = st.form_submit_button(t("btn_save_changes"))
+                if submitted:
+                    if not username or not email:
+                        st.error(t("err_fill_all"))
+                    else:
+                        ok, msg = db.update_user_profile(user_id, username, display_name, email, pic_to_save)
+                        if ok:
+                            st.success(msg)
+                            st.session_state.editing_profile = False
+                            # Refresh user data
+                            fresh = db.get_user_by_id(user_id)
+                            if fresh:
+                                for key in ["username", "email", "display_name", "profile_picture", "created_at"]:
+                                    if key in fresh:
+                                        user[key] = fresh[key]
+                                st.session_state.user = user
+                            st.rerun()
+                        else:
+                            st.error(msg)
+            if st.button(t("btn_cancel"), key="cancel_edit_btn"):
+                st.session_state.editing_profile = False
+                st.rerun()
 
 
 
