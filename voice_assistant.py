@@ -1,28 +1,4 @@
-"""
-voice_assistant.py
--------------------
-Voice Recipe Assistant: lets the user speak their vegetables / recipe
-request instead of typing them.
 
-Architecture notes (why it's built this way):
-
-  * The app runs as a Streamlit *web* app, so the microphone belongs to
-    the user's browser, not the Python server. We capture audio with the
-    `streamlit-mic-recorder` component (a small browser widget that
-    records via the browser's MediaRecorder API and hands the finished
-    clip back to Python as WAV bytes) rather than a server-side library
-    like PyAudio, which would try to open a microphone on the *server*
-    machine and fail (or record the wrong device) in any real deployment.
-  * Speech-to-text itself is handled by the `SpeechRecognition` library
-    using Google's free Web Speech API backend (`recognize_google`), as
-    suggested in the brief. Swapping this for Whisper later only means
-    changing `transcribe_wav_bytes()` below — nothing else in the app
-    needs to change.
-  * Everything here is self-contained and side-effect-free except for
-    `render_voice_input()`, which is the one function app.py calls; it
-    owns its own small slice of st.session_state so the rest of the app
-    doesn't need to know how voice input works internally.
-"""
 
 import hashlib
 import io
@@ -48,27 +24,7 @@ except ImportError:
 VOICE_FEATURE_AVAILABLE = MIC_COMPONENT_AVAILABLE and SPEECH_RECOGNITION_AVAILABLE
 
 
-# ---------------------------------------------------------------------------
-# Live "type-as-you-speak" component (browser's native Web Speech API).
-#
-# This lives entirely as a string right here in this module — there is no
-# separate .html file to maintain. Streamlit's component system technically
-# requires a real file on disk to serve into the iframe, so the HTML below
-# is written out to a temp file lazily, once, the first time it's needed;
-# everything a developer needs to read or edit is still just this one
-# Python file.
-#
-# Wire protocol note: this implements Streamlit's custom-component
-# handshake (streamlit:componentReady / streamlit:render /
-# streamlit:setComponentValue / streamlit:setFrameHeight) directly via
-# window.postMessage, so it needs no npm/webpack build step — just a
-# static HTML/JS payload.
-#
-# Browser support: Chrome and Edge support SpeechRecognition natively.
-# Firefox and Safari currently don't (or only behind flags), so this
-# component detects that and falls back to a plain, manually-typeable box
-# with a clear notice, rather than failing silently.
-# ---------------------------------------------------------------------------
+
 _LIVE_MIC_HTML = r"""<!DOCTYPE html>
 <html>
 <head>
@@ -305,10 +261,7 @@ def live_mic_input(value: str = "", placeholder: str = "", labels: dict = None, 
     )
     return result if result is not None else value
 
-# Used only to pull clean vegetable names out of a spoken sentence for the
-# editable text field / pill preview. The full recognized sentence is kept
-# separately (see voice_raw_text) so qualifiers like "healthy" or "quick"
-# still reach Gemini even when this heuristic can't find a vegetable.
+
 KNOWN_VEGETABLES = [
     "potato", "spinach", "tomato", "carrot", "broccoli", "cauliflower",
     "bell pepper", "capsicum", "zucchini", "eggplant", "brinjal", "onion",
@@ -445,13 +398,7 @@ def render_voice_input():
     else:
         _render_record_mode()
 
-    # NOTE: deliberately no explicit `key=` here. Streamlit auto-generates
-    # a key from a widget's arguments (including `value`) when none is
-    # given, so this text_input naturally re-initializes from
-    # `st.session_state.detected_veg` whenever that changes — matching the
-    # "Type / Select" tab's manual input, which uses the same pattern. An
-    # explicit fixed key would freeze this box on its first-ever value and
-    # ignore later updates from fresh speech, which is the bug this avoids.
+    
     edited = st.text_input(
         t("label_recognized_text"),
         value=st.session_state.get("detected_veg", ""),

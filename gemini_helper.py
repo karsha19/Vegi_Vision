@@ -1,31 +1,3 @@
-"""
-gemini_helper.py
-----------------
-Thin wrapper around the Gemini API for:
-  1. Identifying a vegetable from an uploaded image.
-  2. Generating a full structured recipe (JSON) from a list of vegetables.
-
-The API key is read from the GEMINI_API_KEY environment variable —
-never hard-coded, never displayed in the UI.
-
-Uses the current `google-genai` SDK (the `google.genai.Client` API).
-The older `google-generativeai` package (`genai.configure()` +
-`genai.GenerativeModel(...)`) has been end-of-lifed by Google and no
-longer works reliably — see
-https://github.com/google-gemini/deprecated-generative-ai-python — so
-this module intentionally does not use it.
-
-Model choice: Google's free-tier model lineup changes fairly often
-(gemini-2.0-flash, for example, is being phased out). The model name is
-read from the GEMINI_MODEL environment variable so it can be swapped
-without touching code; GEMINI_MODEL_DEFAULT below is used if that's not
-set. If you start seeing 429 "RESOURCE_EXHAUSTED ... limit: 0" errors,
-it usually means either (a) the configured model has no free-tier quota
-for your project, or (b) your Google Cloud project doesn't have a
-billing account linked yet — Gemini's free tier still requires linking
-one (it stays $0 unless you exceed the free allowance). See
-https://ai.google.dev/gemini-api/docs/rate-limits for current numbers.
-"""
 
 import os
 import json
@@ -160,14 +132,7 @@ Make the recipe realistic, well-balanced, and genuinely cookable at home.
 
 
 def generate_recipe(vegetables: list, cuisine: str = "Any", language: str = "English", extra_context: str = None) -> dict:
-    """Generate a structured recipe dict from Gemini, written in `language`.
-
-    `extra_context` is an optional raw free-form request — typically the
-    full sentence a user *spoke* via the Voice Recipe Assistant (e.g.
-    "I want a healthy spinach recipe"). It lets Gemini pick up on style,
-    mood, or dietary cues that a plain vegetable list would lose, without
-    requiring any client-side NLU to parse them out first.
-    """
+  
     client = _get_client()
     extra_block = ""
     if extra_context and extra_context.strip():
