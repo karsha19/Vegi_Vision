@@ -1,5 +1,35 @@
+"""
+voice_assistant.py
+-------------------
+Voice Recipe Assistant: lets the user speak their vegetables / recipe
+request instead of typing them.
+
+Architecture notes (why it's built this way):
+
+  * The app runs as a Streamlit *web* app, so the microphone belongs to
+    the user's browser, not the Python server. We capture audio with the
+    `streamlit-mic-recorder` component (a small browser widget that
+    records via the browser's MediaRecorder API and hands the finished
+    clip back to Python as WAV bytes) rather than a server-side library
+    like PyAudio, which would try to open a microphone on the *server*
+    machine and fail (or record the wrong device) in any real deployment.
+  * Speech-to-text itself is handled by the `SpeechRecognition` library
+    using Google's free Web Speech API backend (`recognize_google`), as
+    suggested in the brief. Swapping this for Whisper later only means
+    changing `transcribe_wav_bytes()` below — nothing else in the app
+    needs to change.
+  * Everything here is self-contained and side-effect-free except for
+    `render_voice_input()`, which is the one function app.py calls; it
+    owns its own small slice of st.session_state so the rest of the app
+    doesn't need to know how voice input works internally.
+"""
+
+import hashlib
 import io
+import os
+import tempfile
 import streamlit as st
+import streamlit.components.v1 as components
 from translations import t
 
 try:
@@ -17,6 +47,268 @@ except ImportError:
 
 VOICE_FEATURE_AVAILABLE = MIC_COMPONENT_AVAILABLE and SPEECH_RECOGNITION_AVAILABLE
 
+
+# ---------------------------------------------------------------------------
+# Live "type-as-you-speak" component (browser's native Web Speech API).
+#
+# This lives entirely as a string right here in this module — there is no
+# separate .html file to maintain. Streamlit's component system technically
+# requires a real file on disk to serve into the iframe, so the HTML below
+# is written out to a temp file lazily, once, the first time it's needed;
+# everything a developer needs to read or edit is still just this one
+# Python file.
+#
+# Wire protocol note: this implements Streamlit's custom-component
+# handshake (streamlit:componentReady / streamlit:render /
+# streamlit:setComponentValue / streamlit:setFrameHeight) directly via
+# window.postMessage, so it needs no npm/webpack build step — just a
+# static HTML/JS payload.
+#
+# Browser support: Chrome and Edge support SpeechRecognition natively.
+# Firefox and Safari currently don't (or only behind flags), so this
+# component detects that and falls back to a plain, manually-typeable box
+# with a clear notice, rather than failing silently.
+# ---------------------------------------------------------------------------
+_LIVE_MIC_HTML = r"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: transparent;
+  }
+  .wrap { display: flex; flex-direction: column; gap: 8px; padding: 2px 0; }
+  .mic-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    background: #4d6b3d;
+    color: #ffffff;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    box-shadow: 0 6px 16px rgba(77, 107, 61, 0.25);
+  }
+  .mic-btn:hover { transform: translateY(-1px); background: #3a5230; }
+  .mic-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .mic-btn.recording {
+    background: #b3402f;
+    animation: mic-pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes mic-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(179, 64, 47, 0.5); }
+    70%  { box-shadow: 0 0 0 12px rgba(179, 64, 47, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(179, 64, 47, 0); }
+  }
+  .transcript-box {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid #cdc2a3;
+    font-size: 14px;
+    font-family: inherit;
+    background: #ffffff;
+    color: #23281f;
+  }
+  .transcript-box:focus { outline: 2px solid #4d6b3d; outline-offset: 1px; }
+  .hint {
+    font-size: 12px;
+    color: #6b6a5e;
+    min-height: 14px;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; display: inline-block;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <button id="micBtn" class="mic-btn" type="button">
+      <span class="dot" id="micDot"></span>
+      <span id="micLabel">Start Speaking</span>
+    </button>
+    <input id="transcriptBox" class="transcript-box" type="text" autocomplete="off" />
+    <div class="hint" id="hint"></div>
+  </div>
+
+<script>
+(function () {
+  var micBtn = document.getElementById('micBtn');
+  var micLabel = document.getElementById('micLabel');
+  var box = document.getElementById('transcriptBox');
+  var hint = document.getElementById('hint');
+
+  var recognizing = false;
+  var recognition = null;
+  var finalTranscript = "";
+  var initialized = false;
+  var labels = {};
+
+  function sendValue(value) {
+    window.parent.postMessage({
+      isStreamlitMessage: true,
+      type: "streamlit:setComponentValue",
+      value: value,
+      dataType: "json"
+    }, "*");
+  }
+
+  function setFrameHeight() {
+    var height = document.documentElement.scrollHeight;
+    window.parent.postMessage({
+      isStreamlitMessage: true,
+      type: "streamlit:setFrameHeight",
+      height: height
+    }, "*");
+  }
+
+  function onMessage(event) {
+    var data = event.data;
+    if (!data || !data.isStreamlitMessage) return;
+    if (data.type !== "streamlit:render") return;
+
+    var args = data.args || {};
+    labels = args.labels || {};
+
+    if (!initialized) {
+      box.value = args.value || "";
+      box.placeholder = args.placeholder || "";
+      applyLabels();
+      initialized = true;
+    }
+    setFrameHeight();
+  }
+
+  function applyLabels() {
+    micLabel.textContent = recognizing
+      ? (labels.listening || "Listening... (tap to stop)")
+      : (labels.start || "Start Speaking");
+  }
+
+  window.addEventListener("message", onMessage);
+  window.parent.postMessage({ isStreamlitMessage: true, type: "streamlit:componentReady", apiVersion: 1 }, "*");
+  setFrameHeight();
+
+  var SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognitionImpl) {
+    micBtn.disabled = true;
+    hint.textContent = (labels.unsupported ||
+      "Live voice typing needs Chrome or Edge on this device. You can still type here directly.");
+  } else {
+    recognition = new SpeechRecognitionImpl();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = function () {
+      recognizing = true;
+      micBtn.classList.add("recording");
+      applyLabels();
+      hint.textContent = labels.listening_hint || "Listening — speak now.";
+    };
+
+    recognition.onerror = function (e) {
+      hint.textContent = (labels.error_prefix || "Mic error:") + " " + e.error;
+    };
+
+    recognition.onend = function () {
+      recognizing = false;
+      micBtn.classList.remove("recording");
+      applyLabels();
+      hint.textContent = "";
+      sendValue(box.value);
+    };
+
+    recognition.onresult = function (event) {
+      var interim = "";
+      for (var i = event.resultIndex; i < event.results.length; i++) {
+        var piece = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += piece + " ";
+        } else {
+          interim += piece;
+        }
+      }
+      box.value = (finalTranscript + interim).trim();
+      setFrameHeight();
+      if (finalTranscript) {
+        sendValue(box.value);
+      }
+    };
+
+    micBtn.addEventListener("click", function () {
+      if (recognizing) {
+        recognition.stop();
+      } else {
+        finalTranscript = box.value ? box.value + " " : "";
+        try {
+          recognition.start();
+        } catch (e) {
+          hint.textContent = (labels.error_prefix || "Mic error:") + " " + e.message;
+        }
+      }
+    });
+  }
+
+  box.addEventListener("change", function () {
+    finalTranscript = box.value;
+    sendValue(box.value);
+  });
+  box.addEventListener("input", function () {
+    setFrameHeight();
+  });
+})();
+</script>
+</body>
+</html>
+"""
+
+
+def _materialized_component_dir() -> str:
+    """Writes _LIVE_MIC_HTML out to a stable temp path and returns the
+    directory, creating/refreshing it only if the content actually
+    changed. This is the one bit of on-disk state the live component
+    needs (Streamlit's component loader requires a real file to serve) —
+    everything a developer touches still lives in this .py module."""
+    content_hash = hashlib.sha256(_LIVE_MIC_HTML.encode("utf-8")).hexdigest()[:12]
+    component_dir = os.path.join(tempfile.gettempdir(), f"verdant_live_mic_{content_hash}")
+    index_path = os.path.join(component_dir, "index.html")
+    if not os.path.exists(index_path):
+        os.makedirs(component_dir, exist_ok=True)
+        with open(index_path, "w", encoding="utf-8") as f:
+            f.write(_LIVE_MIC_HTML)
+    return component_dir
+
+
+_live_mic_component = components.declare_component("live_mic", path=_materialized_component_dir())
+
+
+def live_mic_input(value: str = "", placeholder: str = "", labels: dict = None, key: str = None) -> str:
+    """Renders the live speech-to-text box. Returns the current transcript
+    (updated as speech is recognized, or when the user edits it by hand)."""
+    result = _live_mic_component(
+        value=value,
+        placeholder=placeholder,
+        labels=labels or {},
+        key=key,
+        default=value,
+    )
+    return result if result is not None else value
+
+# Used only to pull clean vegetable names out of a spoken sentence for the
+# editable text field / pill preview. The full recognized sentence is kept
+# separately (see voice_raw_text) so qualifiers like "healthy" or "quick"
+# still reach Gemini even when this heuristic can't find a vegetable.
 KNOWN_VEGETABLES = [
     "potato", "spinach", "tomato", "carrot", "broccoli", "cauliflower",
     "bell pepper", "capsicum", "zucchini", "eggplant", "brinjal", "onion",
@@ -79,7 +371,7 @@ _ERROR_KEY_MAP = {
 
 def _init_voice_session():
     defaults = {
-        "voice_status": "idle",       # idle ,processing , done , error
+        "voice_status": "idle",       # idle | processing | done | error
         "voice_error": None,
         "voice_raw_text": "",         # full recognized sentence, for context
     }
@@ -113,13 +405,23 @@ def reset_voice_state():
 
 
 def render_voice_input():
-    """Renders the mic recorder + status badge + editable recognized-text
-    field. Writes results into st.session_state.detected_veg — the same
-    field the "Type / Select" tab uses — so voice and typed input flow
-    through one identical, already-tested generation pipeline. The full
-    sentence is additionally kept in st.session_state.voice_raw_text so
-    Gemini can pick up on style/dietary cues ("healthy", "quick", "spicy")
-    that aren't literally vegetable names.
+    """Renders the voice input UI. Two modes, both writing into
+    st.session_state.detected_veg — the same field the "Type / Select" tab
+    uses — so voice and typed input flow through one identical, already-
+    tested generation pipeline:
+
+      1. Live typing (default): the browser's own speech recognition
+         (Chrome/Edge) transcribes continuously and types straight into an
+         editable box as the user talks — no "stop and wait" step.
+      2. Record & Transcribe (fallback): works in any browser. Record a
+         clip, then it's sent to a server-side speech-to-text call once
+         you stop. Used automatically as the visible option when the live
+         mode's browser support is unavailable, and always selectable.
+
+    The full recognized sentence is additionally kept in
+    st.session_state.voice_raw_text so Gemini can pick up on style/dietary
+    cues ("healthy", "quick", "spicy") that aren't literally vegetable
+    names.
     """
     _init_voice_session()
 
@@ -129,6 +431,59 @@ def render_voice_input():
         unsafe_allow_html=True,
     )
 
+    mode = st.radio(
+        t("voice_mode_label"),
+        options=["live", "record"],
+        format_func=lambda m: t("voice_mode_live") if m == "live" else t("voice_mode_record"),
+        horizontal=True,
+        key="voice_mode",
+        label_visibility="collapsed",
+    )
+
+    if mode == "live":
+        _render_live_mode()
+    else:
+        _render_record_mode()
+
+    # NOTE: deliberately no explicit `key=` here. Streamlit auto-generates
+    # a key from a widget's arguments (including `value`) when none is
+    # given, so this text_input naturally re-initializes from
+    # `st.session_state.detected_veg` whenever that changes — matching the
+    # "Type / Select" tab's manual input, which uses the same pattern. An
+    # explicit fixed key would freeze this box on its first-ever value and
+    # ignore later updates from fresh speech, which is the bug this avoids.
+    edited = st.text_input(
+        t("label_recognized_text"),
+        value=st.session_state.get("detected_veg", ""),
+    )
+    if edited != st.session_state.get("detected_veg", ""):
+        st.session_state.detected_veg = edited
+        st.session_state.voice_raw_text = edited
+
+
+def _render_live_mode():
+    """Type-as-you-speak using the browser's native SpeechRecognition."""
+    transcript = live_mic_input(
+        value=st.session_state.get("detected_veg", ""),
+        placeholder=t("placeholder_manual_veg"),
+        labels={
+            "start": t("mic_start_prompt"),
+            "listening": t("status_listening_live"),
+            "listening_hint": t("voice_listening_hint"),
+            "unsupported": t("err_live_unsupported"),
+            "error_prefix": t("err_mic_prefix"),
+        },
+        key="live_mic",
+    )
+    if transcript != st.session_state.get("detected_veg", ""):
+        st.session_state.detected_veg = transcript
+        st.session_state.voice_raw_text = transcript
+        st.session_state.voice_status = "done" if transcript else "idle"
+
+
+def _render_record_mode():
+    """Record a clip, then transcribe it once recording stops (works in
+    any browser, including ones without live SpeechRecognition support)."""
     if not VOICE_FEATURE_AVAILABLE:
         st.warning(t("err_no_speech_lib"))
         return
@@ -166,11 +521,3 @@ def render_voice_input():
             f'<div style="color:var(--text-muted); font-size:0.8rem; margin-top:0.5rem;">🎧 "{st.session_state.voice_raw_text}"</div>',
             unsafe_allow_html=True,
         )
-
-    edited = st.text_input(
-        t("label_recognized_text"),
-        value=st.session_state.get("detected_veg", ""),
-        key="voice_text_edit",
-    )
-    if edited != st.session_state.get("detected_veg", ""):
-        st.session_state.detected_veg = edited

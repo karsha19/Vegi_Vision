@@ -1,10 +1,44 @@
+"""
+gemini_helper.py
+----------------
+Thin wrapper around the Gemini API for:
+  1. Identifying a vegetable from an uploaded image.
+  2. Generating a full structured recipe (JSON) from a list of vegetables.
+
+The API key is read from the GEMINI_API_KEY environment variable —
+never hard-coded, never displayed in the UI.
+
+Uses the current `google-genai` SDK (the `google.genai.Client` API).
+The older `google-generativeai` package (`genai.configure()` +
+`genai.GenerativeModel(...)`) has been end-of-lifed by Google and no
+longer works reliably — see
+https://github.com/google-gemini/deprecated-generative-ai-python — so
+this module intentionally does not use it.
+
+Model choice: Google's free-tier model lineup changes fairly often
+(gemini-2.0-flash, for example, is being phased out). The model name is
+read from the GEMINI_MODEL environment variable so it can be swapped
+without touching code; GEMINI_MODEL_DEFAULT below is used if that's not
+set. If you start seeing 429 "RESOURCE_EXHAUSTED ... limit: 0" errors,
+it usually means either (a) the configured model has no free-tier quota
+for your project, or (b) your Google Cloud project doesn't have a
+billing account linked yet — Gemini's free tier still requires linking
+one (it stays $0 unless you exceed the free allowance). See
+https://ai.google.dev/gemini-api/docs/rate-limits for current numbers.
+"""
+
 import os
 import json
 import re
 from google import genai
+from google.genai import errors as genai_errors
 from PIL import Image
 
-GEMINI_MODEL_NAME = "gemini-flash-lite-latest"
+GEMINI_MODEL_DEFAULT = "gemini-flash-lite-latest"
+
+
+def _get_model_name() -> str:
+    return os.environ.get("GEMINI_MODEL", GEMINI_MODEL_DEFAULT)
 
 
 def _get_api_key():
@@ -24,6 +58,34 @@ def _get_client() -> genai.Client:
     return genai.Client(api_key=api_key)
 
 
+def _friendly_api_error(e: genai_errors.APIError) -> RuntimeError:
+    """Translate the SDK's raw (often huge, JSON-dump) API errors into a
+    short, actionable message instead of surfacing the whole payload."""
+    code = getattr(e, "code", None)
+    if code == 429:
+        return RuntimeError(
+            "Gemini API quota exceeded for the current model. This usually means "
+            "either the free-tier quota for this model is temporarily at 0, or your "
+            "Google Cloud project needs a billing account linked (it stays free unless "
+            "you exceed the free allowance). Try again in a bit, switch GEMINI_MODEL to "
+            "another current model (e.g. gemini-2.5-flash-lite), or check "
+            "https://ai.google.dev/gemini-api/docs/rate-limits for current limits."
+        )
+    if code in (401, 403):
+        return RuntimeError(
+            "Gemini API key was rejected. Double-check GEMINI_API_KEY is correct and "
+            "active in Google AI Studio."
+        )
+    if code == 404:
+        return RuntimeError(
+            f'Model "{_get_model_name()}" was not found. It may have been retired — '
+            f"set GEMINI_MODEL to a current model name and try again."
+        )
+    if code and code >= 500:
+        return RuntimeError("Gemini's servers are having trouble right now. Please try again shortly.")
+    return RuntimeError(f"Gemini API error ({code or 'unknown'}): {getattr(e, 'message', str(e))}")
+
+
 def identify_vegetable_from_image(image: Image.Image) -> str:
     """Send an uploaded image to Gemini and return a short vegetable name."""
     client = _get_client()
@@ -33,10 +95,13 @@ def identify_vegetable_from_image(image: Image.Image) -> str:
         "no punctuation, no extra words. If more than one vegetable is visible, "
         "reply with a comma-separated list of their names."
     )
-    response = client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
-        contents=[prompt, image],
-    )
+    try:
+        response = client.models.generate_content(
+            model=_get_model_name(),
+            contents=[prompt, image],
+        )
+    except genai_errors.APIError as e:
+        raise _friendly_api_error(e)
     text = (response.text or "").strip().lower()
     text = re.sub(r"[^a-z,\s-]", "", text)
     return text.strip()
@@ -117,10 +182,13 @@ def generate_recipe(vegetables: list, cuisine: str = "Any", language: str = "Eng
         language=language,
         extra_context_block=extra_block,
     )
-    response = client.models.generate_content(
-        model=GEMINI_MODEL_NAME,
-        contents=prompt,
-    )
+    try:
+        response = client.models.generate_content(
+            model=_get_model_name(),
+            contents=prompt,
+        )
+    except genai_errors.APIError as e:
+        raise _friendly_api_error(e)
     text = response.text or "{}"
     try:
         recipe = _extract_json(text)
