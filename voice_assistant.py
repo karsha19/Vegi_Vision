@@ -235,7 +235,7 @@ def _materialized_component_dir() -> str:
     needs (Streamlit's component loader requires a real file to serve) —
     everything a developer touches still lives in this .py module."""
     content_hash = hashlib.sha256(_LIVE_MIC_HTML.encode("utf-8")).hexdigest()[:12]
-    component_dir = os.path.join(tempfile.gettempdir(), f"verdant_live_mic_{content_hash}")
+    component_dir = os.path.join(tempfile.gettempdir(), f"vegivision_live_mic_{content_hash}")
     index_path = os.path.join(component_dir, "index.html")
     if not os.path.exists(index_path):
         os.makedirs(component_dir, exist_ok=True)

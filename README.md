@@ -1,4 +1,4 @@
-# 🌿 Verdant — Vegetable Recipe Maker
+# 🌿 VegiVision — Vegetable Recipe Maker
 
 A portfolio-quality Streamlit app that turns vegetables into fully structured,
 chef-crafted recipes using the Gemini API — styled as an editorial + bento

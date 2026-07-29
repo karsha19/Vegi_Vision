@@ -15,7 +15,7 @@ from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 load_dotenv()
 
 st.set_page_config(
-    page_title="Verdant — Vegetable Recipe Maker",
+    page_title="VegiVision — Vegetable Recipe Maker",
     page_icon="🌿",
     layout="wide",
     initial_sidebar_state="expanded",
