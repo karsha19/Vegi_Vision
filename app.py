@@ -244,6 +244,8 @@ def sidebar():
             ("profile", "🪴", "nav_profile"),
         ]
         for key, icon, label_key in nav_items:
+            if not collapsed and st.session_state.page == key:
+                st.markdown('<div class="nav-active-marker"></div>', unsafe_allow_html=True)
             label = icon if collapsed else f"{icon}  {t(label_key)}"
             if st.button(label, key=f"nav_{key}", use_container_width=True, help=t(label_key) if collapsed else None):
                 st.session_state.page = key

@@ -121,12 +121,14 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
             padding-right: 0.4rem;
         }
         section[data-testid="stSidebar"] .stButton > button {
+            justify-content: center;
             text-align: center;
             padding: 0.62rem 0.4rem;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
         }
         section[data-testid="stSidebar"] .stButton > button:hover {
             transform: none;
+            background: var(--card-hover);
         }
         section[data-testid="stSidebar"] div[data-baseweb="select"] {
             font-size: 0.75rem;
@@ -176,37 +178,55 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         text-decoration: underline;
     }}
 
-    /* ---------- Sidebar ---------- */
+    /* ================= SIDEBAR ================= */
     section[data-testid="stSidebar"] {{
         background: var(--surface);
         border-right: 1px solid var(--border);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.06);
         transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
                     min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         overflow-x: hidden;
     }}
+
+    /* Keep the expanded sidebar wide enough that nav labels never wrap */
+    @media (min-width: 769px) {{
+        section[data-testid="stSidebar"] {{
+            width: 288px !important;
+            min-width: 288px !important;
+            max-width: 288px !important;
+        }}
+    }}
+
     section[data-testid="stSidebar"] .block-container {{
-        padding-top: 2rem;
+        padding-top: 1.6rem;
+        padding-left: 1.1rem;
+        padding-right: 1.1rem;
         transition: padding 0.28s ease;
     }}
+
+    /* Base text/icon color inside sidebar — high-contrast in both themes */
     section[data-testid="stSidebar"] * {{
         color: var(--text-secondary);
     }}
 
-    /* Hamburger / close toggle — the first button rendered in the
-       sidebar, styled distinctly (small, circular, high-contrast) from
-       the nav buttons below it. */
+    /* ---- Hamburger / close toggle ---- */
     section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button {{
         width: 40px;
         height: 40px;
+        min-width: 40px;
         padding: 0 !important;
         border-radius: 50% !important;
         background: var(--primary) !important;
         color: var(--text-on-primary) !important;
         font-size: 1.1rem;
         font-weight: 700;
-        margin-bottom: 1rem;
+        margin-bottom: 1.1rem;
         box-shadow: var(--shadow);
+        border: 1px solid var(--border-strong);
         transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button p {{
+        color: var(--text-on-primary) !important;
     }}
     section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button:hover {{
         background: var(--primary-hover) !important;
@@ -221,6 +241,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         outline-offset: 2px;
     }}
 
+    /* ---- Logo / brand area ---- */
     .brand-mark-collapsed {{
         text-align: center;
         font-size: 1.6rem;
@@ -231,45 +252,104 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     .brand-mark {{
         font-family: 'Fraunces', serif;
-        font-size: 1.55rem;
+        font-size: 1.62rem;
         font-weight: 700;
         color: var(--text-primary) !important;
-        line-height: 1.1;
-        margin-bottom: 0.1rem;
+        line-height: 1.15;
+        margin-bottom: 0.15rem;
+        letter-spacing: -0.01em;
     }}
     .brand-sub {{
         font-family: 'Manrope', sans-serif;
-        font-size: 0.72rem;
-        letter-spacing: 0.16em;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--text-muted) !important;
-        margin-bottom: 1.6rem;
+        color: var(--secondary-accent) !important;
+        margin-bottom: 1.9rem;
+        opacity: 0.9;
     }}
 
-    /* Sidebar nav buttons */
+    /* ---- Nav buttons (Generate Recipe / Recipe History / Favorites / Profile) ---- */
+    section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] div[data-testid="stButton"] {{
+        margin-bottom: 0.4rem;
+    }}
     div[data-testid="stSidebar"] .stButton > button {{
         width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
         text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         background: transparent;
         border: 1px solid transparent;
         color: var(--text-secondary) !important;
         font-weight: 600;
-        font-size: 0.92rem;
-        padding: 0.62rem 0.9rem;
-        border-radius: 12px;
-        margin-bottom: 0.35rem;
-        transition: all 0.18s ease;
+        font-size: 0.95rem;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
+        padding: 0.78rem 1rem;
+        min-height: 46px;
+        border-radius: 14px;
         box-shadow: none;
+        transition: background 0.18s ease, border-color 0.18s ease,
+                    color 0.18s ease, transform 0.18s ease;
     }}
+    div[data-testid="stSidebar"] .stButton > button p {{
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: inherit !important;
+        margin: 0;
+    }}
+
+    /* Hover state — subtle bg + gentle shift, no layout jump */
     div[data-testid="stSidebar"] .stButton > button:hover {{
         background: var(--card-hover);
         border-color: var(--border);
         color: var(--text-primary) !important;
-        transform: translateX(3px);
+        transform: translateX(3px) scale(1.01);
+    }}
+    div[data-testid="stSidebar"] .stButton > button:active {{
+        transform: translateX(1px) scale(0.99);
     }}
     div[data-testid="stSidebar"] .stButton > button:focus-visible {{
         outline: 2px solid var(--focus-ring);
         outline-offset: 2px;
+    }}
+
+    /* ---- Active nav item ----
+       A hidden marker div rendered right before the active nav button
+       (see sidebar() in app.py) lets pure CSS pick out that one button
+       via an adjacent-sibling selector, with no hardcoded per-page CSS. */
+    div[data-testid="stSidebar"] .nav-active-marker
+        + div[data-testid="stButton"] > button {{
+        background: var(--primary-soft) !important;
+        border-color: var(--primary) !important;
+        color: var(--primary) !important;
+        font-weight: 800 !important;
+    }}
+    div[data-testid="stSidebar"] .nav-active-marker
+        + div[data-testid="stButton"] > button:hover {{
+        background: var(--primary-soft) !important;
+        transform: translateX(3px);
+    }}
+    .nav-active-marker {{ display: none; }}
+
+    /* ---- Divider between nav / theme toggle / language ---- */
+    section[data-testid="stSidebar"] hr.divider-thin {{
+        border-top: 1px solid var(--border);
+        margin: 1.1rem 0;
+    }}
+
+    /* ---- Language select inside sidebar ---- */
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {{
+        background: var(--input-bg) !important;
+        border: 1px solid var(--border-strong) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
     }}
 
     /* ---------- Generic card ----------
