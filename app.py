@@ -1,10 +1,3 @@
-"""
-app.py
-------
-Vegetable Recipe Maker — an editorial / bento-grid Streamlit app powered
-by Gemini + SQLite. Run with: streamlit run app.py
-"""
-
 import os
 import base64
 import io
@@ -22,7 +15,7 @@ from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 load_dotenv()
 
 st.set_page_config(
-    page_title="Verdant — Vegetable Recipe Maker",
+    page_title="VegiVision — Vegetable Recipe Maker",
     page_icon="🌿",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -33,7 +26,7 @@ db.init_db()
 CUISINES = ["Any", "Italian", "Indian", "Thai", "Mexican", "Mediterranean", "Chinese", "American", "French", "Middle Eastern"]
 
 
-# ------------------------------------------------------------- session ----
+
 
 def init_session():
     defaults = {
@@ -60,10 +53,7 @@ init_session()
 
 def inject_css():
     st.markdown(FONT_IMPORT, unsafe_allow_html=True)
-    # Defensive: if styles.py on disk is an older copy that doesn't accept
-    # sidebar_collapsed yet, fall back to the 1-argument call instead of
-    # crashing with a TypeError. This can happen if the project's files
-    # get out of sync (e.g. only app.py was updated, not styles.py).
+   
     try:
         css = get_theme_css(st.session_state.dark_mode, st.session_state.sidebar_collapsed)
     except TypeError:
@@ -88,7 +78,6 @@ def inject_css():
 inject_css()
 
 
-# ------------------------------------------------------------ helpers -----
 
 def image_to_b64(img: Image.Image) -> str:
     buf = io.BytesIO()
@@ -235,7 +224,7 @@ def auth_screen():
                                 st.error(t("err_username_exists"))
 
 
-# ------------------------------------------------------------ sidebar -----
+
 
 def _toggle_sidebar():
     st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
@@ -321,7 +310,6 @@ def sidebar():
             )
 
 
-# --------------------------------------------------------- recipe card ----
 
 def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True):
     is_fav = db.is_favorite(user_id, recipe_id) if (recipe_id and user_id) else False

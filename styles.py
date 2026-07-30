@@ -1,40 +1,3 @@
-"""
-styles.py
----------
-Centralized theme system for Verdant.
-
-Every color in the app is driven by CSS custom properties defined here in
-ONE place. Components never hardcode hex values, `white`, `#fff`, `#000`,
-etc. — they reference a semantic variable (--text-primary, --card,
---border, ...) and get the correct value automatically for whichever mode
-(light/dark) is active. Toggling dark mode simply swaps the variable
-values in :root; nothing else in the app needs to change.
-
-Semantic variable contract (used everywhere, in this file and in app.py):
-
-    --background        page background
-    --surface            secondary background (sidebar, alt sections)
-    --card                card / panel background
-    --card-hover          card background on hover
-    --primary             brand green (buttons, active states, accents)
-    --primary-hover        brand green, hover/pressed state
-    --primary-soft         low-opacity tint of primary (badges, highlights)
-    --secondary-accent      warm brown accent (eyebrows, secondary pills)
-    --text-primary          headings / high-emphasis text
-    --text-secondary        body copy
-    --text-muted             captions, helper text, timestamps
-    --text-on-primary        text placed on top of a --primary background
-    --border                 default border color
-    --border-strong          higher-contrast border (inputs, dropzone)
-    --input-bg                background for inputs/selects/textareas
-    --placeholder              input placeholder text
-    --shadow                   card / elevation shadow
-    --shadow-strong             stronger shadow (modals, popovers)
-    --success / --error / --warning / --info    status colors (toasts/alerts)
-    --success-bg / --error-bg / --warning-bg / --info-bg   status backgrounds
-    --focus-ring                 focus outline color for accessibility
-"""
-
 FONT_IMPORT = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -209,8 +172,14 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-secondary);
     }}
 
-    /* ---- Hamburger / close toggle ---- */
-    section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button {{
+    /* ---- Hamburger / close toggle ----
+       Scoped by Streamlit's key-based class (added automatically for
+       every widget with a `key=`) rather than :first-of-type — each
+       sidebar button lives in its own wrapper container, so
+       ":first-of-type" was trivially true for ALL of them, not just
+       the toggle, which squashed every nav label into a 40px circle. */
+    section[data-testid="stSidebar"] .st-key-sidebar_toggle > div > button,
+    section[data-testid="stSidebar"] .st-key-sidebar_toggle button {{
         width: 40px;
         height: 40px;
         min-width: 40px;
@@ -225,18 +194,18 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         border: 1px solid var(--border-strong);
         transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }}
-    section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button p {{
+    section[data-testid="stSidebar"] .st-key-sidebar_toggle button p {{
         color: var(--text-on-primary) !important;
     }}
-    section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button:hover {{
+    section[data-testid="stSidebar"] .st-key-sidebar_toggle button:hover {{
         background: var(--primary-hover) !important;
         transform: scale(1.08) !important;
         box-shadow: var(--shadow-strong);
     }}
-    section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button:active {{
+    section[data-testid="stSidebar"] .st-key-sidebar_toggle button:active {{
         transform: scale(0.96) !important;
     }}
-    section[data-testid="stSidebar"] div[data-testid="stButton"]:first-of-type > button:focus-visible {{
+    section[data-testid="stSidebar"] .st-key-sidebar_toggle button:focus-visible {{
         outline: 2px solid var(--focus-ring);
         outline-offset: 2px;
     }}
