@@ -243,20 +243,37 @@ def _migrate_users_table():
             conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT DEFAULT ''")
         if "profile_picture" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN profile_picture TEXT DEFAULT ''")
+        if "phone" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''")
+        if "location" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN location TEXT DEFAULT ''")
+        if "bio" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
 
 
-def update_user_profile(user_id: int, username: str, display_name: str, email: str, profile_picture=None):
+def update_user_profile(
+    user_id: int,
+    username: str,
+    display_name: str,
+    email: str,
+    phone: str = "",
+    location: str = "",
+    bio: str = "",
+    profile_picture=None,
+):
     try:
         with get_conn() as conn:
             if profile_picture is not None:
                 conn.execute(
-                    "UPDATE users SET username=?, display_name=?, email=?, profile_picture=? WHERE id=?",
-                    (username, display_name, email, profile_picture, user_id),
+                    """UPDATE users SET username=?, display_name=?, email=?, phone=?,
+                       location=?, bio=?, profile_picture=? WHERE id=?""",
+                    (username, display_name, email, phone, location, bio, profile_picture, user_id),
                 )
             else:
                 conn.execute(
-                    "UPDATE users SET username=?, display_name=?, email=? WHERE id=?",
-                    (username, display_name, email, user_id),
+                    """UPDATE users SET username=?, display_name=?, email=?, phone=?,
+                       location=?, bio=? WHERE id=?""",
+                    (username, display_name, email, phone, location, bio, user_id),
                 )
         return True, "Profile updated."
     except sqlite3.IntegrityError:

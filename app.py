@@ -47,6 +47,8 @@ def init_session():
         "detected_veg": "",
         "language": DEFAULT_LANGUAGE,
         "sidebar_collapsed": False,
+        "profile_edit_mode": False,
+        "profile_confirm_delete": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -98,6 +100,21 @@ def b64_to_image_html(b64: str, height="180px") -> str:
     if not b64:
         return ""
     return f'<img src="data:image/png;base64,{b64}" style="width:100%;height:{height};object-fit:cover;border-radius:16px;margin-bottom:0.7rem;" />'
+
+
+def profile_avatar_html(user: dict) -> str:
+    """Large circular avatar for the Profile page: the user's uploaded
+    picture if present, otherwise their initials on a soft brand-green
+    background — same fallback style as the small avatar-badge used
+    elsewhere."""
+    pic = user.get("profile_picture") or ""
+    if pic:
+        inner = f'<img src="data:image/png;base64,{pic}" />'
+    else:
+        name_source = (user.get("display_name") or user.get("username") or "?").strip()
+        initials = name_source[:2].upper() if name_source else "?"
+        inner = initials
+    return f'<div class="profile-avatar-large">{inner}</div>'
 
 
 def empty_state(icon: str, title: str, subtitle: str):
@@ -628,10 +645,17 @@ def page_favorites():
 
 # ------------------------------------------------------------ profile page
 
-def page_profile():
-    user = st.session_state.user
-    stats = db.get_user_stats(user["id"])
+def _crop_to_square(img: Image.Image, size: int = 320) -> Image.Image:
+    """Center-crop to a square and resize, so uploaded photos always
+    render cleanly inside the circular avatar regardless of aspect ratio."""
+    img = img.convert("RGB")
+    w, h = img.size
+    side = min(w, h)
+    left, top = (w - side) // 2, (h - side) // 2
+    return img.crop((left, top, left + side, top + side)).resize((size, size))
 
+
+def _render_profile_header(user: dict):
     st.markdown(
         f"""
         <div class="top-header">
@@ -641,14 +665,26 @@ def page_profile():
         unsafe_allow_html=True,
     )
 
-    top_col1, top_col2 = st.columns([1, 3])
+
+def _render_profile_view(user: dict, stats: dict):
+    top_col1, top_col2 = st.columns([1, 2])
+
     with top_col1:
         with card():
-            initials = user["username"][:2].upper()
-            st.markdown(f'<div class="avatar-badge">{initials}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="margin-top:0.8rem; font-weight:700; font-size:1.1rem; color:var(--text-primary);">{user["username"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem;">{user["email"]}</div>', unsafe_allow_html=True)
-            st.markdown(f'<div style="color:var(--text-muted); font-size:0.78rem; margin-top:0.4rem;">{t("member_since", date=user["created_at"][:10])}</div>', unsafe_allow_html=True)
+            st.markdown(profile_avatar_html(user), unsafe_allow_html=True)
+            display = user.get("display_name") or user["username"]
+            st.markdown(f'<div class="profile-name">{display}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="text-align:center;color:var(--text-muted);font-size:0.82rem;margin-bottom:0.6rem;">@{user["username"]}</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div style="text-align:center;color:var(--text-muted);font-size:0.75rem;margin-bottom:1rem;">🕰 {t("member_since", date=user["created_at"][:10])}</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(f"✏️  {t('btn_edit_profile')}", key="btn_open_edit_profile", use_container_width=True):
+                st.session_state.profile_edit_mode = True
+                st.rerun()
 
     with top_col2:
         s1, s2, s3 = st.columns(3)
@@ -663,9 +699,117 @@ def page_profile():
                     st.markdown(f'<div class="stat-num">{num}</div>', unsafe_allow_html=True)
                     st.markdown(f'<div class="stat-label">{label}</div>', unsafe_allow_html=True)
 
+        with card():
+            st.markdown(f'<span class="eyebrow">📇 {t("label_bio")}</span>', unsafe_allow_html=True)
+            email_val = user.get("email") or ""
+            phone_val = user.get("phone") or ""
+            location_val = user.get("location") or ""
+            bio_val = user.get("bio") or ""
+
+            def meta_row(icon, value, empty_key):
+                shown = value if value else f'<span class="meta-empty">{t(empty_key)}</span>'
+                return f'<div class="profile-meta-row"><span class="meta-icon">{icon}</span><span>{shown}</span></div>'
+
+            st.markdown(meta_row("📧", email_val, "not_added"), unsafe_allow_html=True)
+            st.markdown(meta_row("📞", phone_val, "no_phone"), unsafe_allow_html=True)
+            st.markdown(meta_row("📍", location_val, "no_location"), unsafe_allow_html=True)
+            st.markdown('<div style="margin-top:0.7rem;">', unsafe_allow_html=True)
+            if bio_val:
+                st.markdown(f'<div class="bio-text">{bio_val}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="bio-text" style="font-style:italic; color:var(--text-muted);">{t("no_bio")}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+def _render_profile_edit_form(user: dict):
+    with card(accent=True):
+        st.markdown(f'<span class="eyebrow">✏️ {t("edit_profile")}</span>', unsafe_allow_html=True)
+
+        with st.form("edit_profile_form"):
+            col_pic, col_fields = st.columns([1, 2])
+
+            with col_pic:
+                st.markdown(profile_avatar_html(user), unsafe_allow_html=True)
+                uploaded_pic = st.file_uploader(
+                    t("upload_profile_picture"), type=["png", "jpg", "jpeg"], key="profile_pic_uploader"
+                )
+                remove_pic = st.checkbox(
+                    t("remove_profile_picture"), key="profile_pic_remove_cb",
+                    disabled=not bool(user.get("profile_picture")),
+                )
+
+            with col_fields:
+                new_username = st.text_input(t("label_username"), value=user["username"], key="edit_username")
+                new_display_name = st.text_input(
+                    t("label_display_name"), value=user.get("display_name") or "", key="edit_display_name"
+                )
+                new_email = st.text_input(t("label_email"), value=user.get("email") or "", key="edit_email")
+                fcol1, fcol2 = st.columns(2)
+                with fcol1:
+                    new_phone = st.text_input(
+                        t("label_phone"), value=user.get("phone") or "",
+                        placeholder=t("placeholder_phone"), key="edit_phone",
+                    )
+                with fcol2:
+                    new_location = st.text_input(
+                        t("label_location"), value=user.get("location") or "",
+                        placeholder=t("placeholder_location"), key="edit_location",
+                    )
+
+            new_bio = st.text_area(
+                t("label_bio"), value=user.get("bio") or "",
+                placeholder=t("placeholder_bio"), height=100, key="edit_bio",
+            )
+
+            save_col, cancel_col = st.columns(2)
+            with save_col:
+                submitted = st.form_submit_button(t("btn_save_changes"), use_container_width=True)
+            with cancel_col:
+                cancelled = st.form_submit_button(t("btn_cancel"), use_container_width=True)
+
+        if cancelled:
+            st.session_state.profile_edit_mode = False
+            st.rerun()
+
+        if submitted:
+            if not new_username.strip() or not new_email.strip():
+                st.error(t("err_fill_all"))
+            else:
+                pic_data = None
+                if remove_pic:
+                    pic_data = ""
+                elif uploaded_pic is not None:
+                    try:
+                        img = _crop_to_square(Image.open(uploaded_pic))
+                        pic_data = image_to_b64(img)
+                    except Exception as e:
+                        st.error(t("err_profile_update_failed", error=str(e)))
+                        pic_data = None
+
+                ok, msg = db.update_user_profile(
+                    user["id"],
+                    new_username.strip(),
+                    new_display_name.strip(),
+                    new_email.strip(),
+                    new_phone.strip(),
+                    new_location.strip(),
+                    new_bio.strip(),
+                    profile_picture=pic_data,
+                )
+                if ok:
+                    st.session_state.user = db.get_user_by_id(user["id"])
+                    st.session_state.profile_edit_mode = False
+                    st.success(t("msg_profile_updated"))
+                    time.sleep(0.4)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+
+def _render_recent_activity(user_id: int):
     st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
     st.markdown(f'<span class="eyebrow">🕰 {t("eyebrow_recent")}</span>', unsafe_allow_html=True)
-    recent = db.get_user_recipes(user["id"])[:5]
+    recent = db.get_user_recipes(user_id)[:5]
     if not recent:
         empty_state("🌱", t("empty_no_recent_title"), t("empty_no_recent_sub"))
     else:
@@ -674,7 +818,7 @@ def page_profile():
                 f"""
                 <div class="recipe-card-mini" style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <div style="font-weight:700;">{r['title']}</div>
+                        <div style="font-weight:700;">🍲 {r['title']}</div>
                         <div style="color:var(--text-muted); font-size:0.8rem;">{r.get('cuisine','')} · {r['created_at'][:10]}</div>
                     </div>
                     <div class="pill">{r.get('difficulty','')}</div>
@@ -682,6 +826,106 @@ def page_profile():
                 """,
                 unsafe_allow_html=True,
             )
+
+
+def _render_preferences():
+    st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+    st.markdown(f'<span class="eyebrow">🎛 {t("eyebrow_preferences")}</span>', unsafe_allow_html=True)
+    with card():
+        pcol1, pcol2 = st.columns(2)
+        with pcol1:
+            st.markdown(f'<div style="font-weight:700; margin-bottom:0.3rem;">{t("pref_theme")}</div>', unsafe_allow_html=True)
+            status = t("pref_dark_mode_on") if st.session_state.dark_mode else t("pref_dark_mode_off")
+            st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0.6rem;">{status}</div>', unsafe_allow_html=True)
+            icon = "☀️" if st.session_state.dark_mode else "🌙"
+            if st.button(f"{icon}  {t('toggle_appearance')}", key="profile_toggle_theme"):
+                st.session_state.dark_mode = not st.session_state.dark_mode
+                st.rerun()
+        with pcol2:
+            st.markdown(f'<div style="font-weight:700; margin-bottom:0.3rem;">{t("pref_language")}</div>', unsafe_allow_html=True)
+            lang_codes = list(LANGUAGES.keys())
+            current_idx = lang_codes.index(st.session_state.language)
+            lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
+            chosen = st.selectbox(
+                t("language_label"), lang_labels, index=current_idx,
+                key="profile_lang_select", label_visibility="collapsed",
+            )
+            chosen_code = lang_codes[lang_labels.index(chosen)]
+            if chosen_code != st.session_state.language:
+                st.session_state.language = chosen_code
+                st.rerun()
+
+
+def _render_account_settings(user: dict):
+    st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+    st.markdown(f'<span class="eyebrow">🔐 {t("eyebrow_account_settings")}</span>', unsafe_allow_html=True)
+
+    with card():
+        with st.expander(f"🔑 {t('change_password')}"):
+            with st.form("change_password_form"):
+                current_pw = st.text_input(t("label_current_password"), type="password", key="cp_current")
+                new_pw = st.text_input(t("label_new_password"), type="password", key="cp_new")
+                confirm_pw = st.text_input(t("label_confirm_password"), type="password", key="cp_confirm")
+                submitted_pw = st.form_submit_button(t("btn_update_password"))
+            if submitted_pw:
+                if not current_pw or not new_pw or not confirm_pw:
+                    st.error(t("err_fill_all"))
+                elif new_pw != confirm_pw:
+                    st.error(t("err_pw_mismatch"))
+                elif len(new_pw) < 6:
+                    st.error(t("err_pw_short"))
+                else:
+                    ok, msg = db.update_user_password(user["id"], current_pw, new_pw)
+                    if ok:
+                        st.success(t("msg_password_updated"))
+                    else:
+                        st.error(msg)
+
+        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+
+        if st.button(f"↩  {t('btn_logout')}", key="profile_logout_btn", use_container_width=True):
+            st.session_state.user = None
+            st.session_state.page = "generate"
+            st.session_state.profile_edit_mode = False
+            st.rerun()
+
+        st.markdown(
+            f"""
+            <div class="danger-zone-box">
+                <div class="danger-title">⚠️ {t('danger_zone')}</div>
+                <div class="danger-desc">{t('confirm_delete_account')}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        confirm = st.checkbox(t("confirm_delete_checkbox"), key="profile_confirm_delete_cb")
+        st.markdown('<div class="danger-btn-marker"></div>', unsafe_allow_html=True)
+        if st.button(f"🗑  {t('btn_delete_account')}", key="profile_delete_account_btn", disabled=not confirm, use_container_width=True):
+            if db.delete_user(user["id"]):
+                st.session_state.user = None
+                st.session_state.page = "generate"
+                st.session_state.profile_edit_mode = False
+                st.success(t("account_deleted"))
+                time.sleep(0.6)
+                st.rerun()
+            else:
+                st.error(t("error_deleting_account"))
+
+
+def page_profile():
+    user = st.session_state.user
+    stats = db.get_user_stats(user["id"])
+
+    _render_profile_header(user)
+
+    if st.session_state.profile_edit_mode:
+        _render_profile_edit_form(user)
+    else:
+        _render_profile_view(user, stats)
+
+    _render_recent_activity(user["id"])
+    _render_preferences()
+    _render_account_settings(user)
 
 
 # ------------------------------------------------------------------ main --

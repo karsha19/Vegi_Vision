@@ -719,6 +719,92 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         border: 1px solid var(--border);
     }}
 
+    /* ---------- Profile page: large avatar, bio, danger zone ---------- */
+    .profile-avatar-large {{
+        width: 108px;
+        height: 108px;
+        border-radius: 50%;
+        background: var(--primary-soft);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.4rem;
+        font-family: 'Fraunces', serif;
+        font-weight: 700;
+        color: var(--primary) !important;
+        border: 3px solid var(--card);
+        box-shadow: var(--shadow);
+        margin: 0 auto 0.9rem auto;
+        overflow: hidden;
+    }}
+    .profile-avatar-large img {{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }}
+    .profile-name {{
+        font-family: 'Fraunces', serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        text-align: center;
+        color: var(--text-primary) !important;
+        margin-bottom: 0.1rem;
+    }}
+    .profile-meta-row {{
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed var(--border);
+        color: var(--text-secondary) !important;
+        font-size: 0.88rem;
+    }}
+    .profile-meta-row:last-child {{ border-bottom: none; }}
+    .profile-meta-row .meta-icon {{
+        flex-shrink: 0;
+        width: 20px;
+        text-align: center;
+        color: var(--primary) !important;
+    }}
+    .profile-meta-row .meta-empty {{
+        color: var(--text-muted) !important;
+        font-style: italic;
+    }}
+    .bio-text {{
+        color: var(--text-secondary) !important;
+        line-height: 1.6;
+        font-size: 0.92rem;
+    }}
+    .danger-zone-box {{
+        border: 1px solid var(--error) !important;
+        background: var(--error-bg) !important;
+        border-radius: 16px;
+        padding: 1rem 1.1rem;
+        margin-top: 0.6rem;
+    }}
+    .danger-zone-box .danger-title {{
+        color: var(--error) !important;
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 0.3rem;
+    }}
+    .danger-zone-box .danger-desc {{
+        color: var(--text-secondary) !important;
+        font-size: 0.82rem;
+        margin-bottom: 0.7rem;
+    }}
+    div[data-testid="stVerticalBlock"] > div.element-container:has(.danger-btn-marker)
+        + div[data-testid="stButton"] > button {{
+        background: var(--error) !important;
+        color: var(--text-on-primary) !important;
+    }}
+    div[data-testid="stVerticalBlock"] > div.element-container:has(.danger-btn-marker)
+        + div[data-testid="stButton"] > button:hover {{
+        filter: brightness(0.92);
+    }}
+    .danger-btn-marker {{ display: none; }}
+
     /* ---------- Footer (reserved for future use) ---------- */
     .app-footer {{
         color: var(--text-muted) !important;
