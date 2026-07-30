@@ -66,6 +66,7 @@ def init_db():
                 FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE
             )
         """)
+        _migrate_users_table()
 
 
 # auth 
@@ -232,12 +233,6 @@ def get_user_stats(user_id: int) -> dict:
     return {"total_recipes": total, "total_favorites": favs, "unique_cuisines": cuisines}
 
 
-def get_user_by_id(user_id: int):
-    with get_conn() as conn:
-        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
-        if row:
-            return dict(row)
-        return None
 
 # profile management
 
