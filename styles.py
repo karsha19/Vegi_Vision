@@ -1139,3 +1139,5 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     ::-webkit-scrollbar-thumb {{ background: var(--text-muted); border-radius: 8px; }}
     </style>
     """
+
+

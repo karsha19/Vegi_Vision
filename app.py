@@ -42,6 +42,7 @@
 #         "dark_mode": False,
 #         "auth_mode": "login",
 #         "current_recipe": None,
+#         "last_generated_recipe_id": None,
 #         "selected_recipe_id": None,
 #         "veg_image": None,
 #         "detected_veg": "",
@@ -531,7 +532,19 @@
 #                     voice_context = st.session_state.get("voice_raw_text") or None
 #                     recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language, extra_context=voice_context)
 #                     st.session_state.current_recipe = recipe
-#                     st.success(t("msg_recipe_ready"))
+
+#                     # Automatically persist every generated recipe to the user's
+#                     # History — no manual "save" action required. Works for
+#                     # recipes generated from an uploaded image, a live camera
+#                     # capture, typed/selected vegetables, or voice input, since
+#                     # veg_image is populated identically in all of those paths.
+#                     recipe_to_save = dict(recipe)
+#                     if st.session_state.veg_image is not None:
+#                         recipe_to_save["image_data"] = image_to_b64(st.session_state.veg_image)
+#                     new_recipe_id = db.save_recipe(st.session_state.user["id"], recipe_to_save)
+#                     st.session_state.last_generated_recipe_id = new_recipe_id
+
+#                     st.success(t("msg_saved"))
 #                 except Exception as e:
 #                     st.error(t("err_recipe_failed", error=e))
 
@@ -539,23 +552,37 @@
 #         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
 #         render_recipe(st.session_state.current_recipe, show_favorite=False)
 
-#         save_col, discard_col = st.columns([1, 1])
-#         with save_col:
-#             if st.button(f"💾 {t('btn_save_journal')}", key="save_recipe_btn", use_container_width=True):
-#                 recipe_to_save = dict(st.session_state.current_recipe)
-#                 if st.session_state.veg_image is not None:
-#                     recipe_to_save["image_data"] = image_to_b64(st.session_state.veg_image)
-#                 rid = db.save_recipe(st.session_state.user["id"], recipe_to_save)
-#                 st.success(t("msg_saved"))
-#                 st.session_state.current_recipe = None
-#                 st.session_state.veg_image = None
-#                 st.session_state.detected_veg = ""
-#                 va.reset_voice_state()
-#                 time.sleep(0.6)
-#                 st.rerun()
+#         fav_col, discard_col = st.columns([1, 1])
+#         with fav_col:
+#             gen_recipe_id = st.session_state.last_generated_recipe_id
+#             user_id = st.session_state.user["id"]
+#             already_fav = db.is_favorite(user_id, gen_recipe_id) if gen_recipe_id else False
+
+#             if already_fav:
+#                 st.button(
+#                     "💚 Added to Favorites",
+#                     key="fav_generated_btn",
+#                     use_container_width=True,
+#                     disabled=True,
+#                 )
+#                 st.caption("This recipe is already in your Favorites.")
+#             else:
+#                 if st.button(
+#                     "❤️ Add to Favorites",
+#                     key="fav_generated_btn",
+#                     use_container_width=True,
+#                     disabled=gen_recipe_id is None,
+#                 ):
+#                     # Recipe is already in History (auto-saved on generation);
+#                     # this only marks it as a favorite, it never inserts a
+#                     # second history/recipe row.
+#                     db.toggle_favorite(user_id, gen_recipe_id)
+#                     st.success("Recipe added to Favorites successfully!")
+#                     st.rerun()
 #         with discard_col:
 #             if st.button(f"✕ {t('btn_discard')}", key="discard_recipe_btn", use_container_width=True):
 #                 st.session_state.current_recipe = None
+#                 st.session_state.last_generated_recipe_id = None
 #                 va.reset_voice_state()
 #                 st.rerun()
 #     else:
@@ -968,7 +995,6 @@
 # if __name__ == "__main__":
 #     main()
 
-
 """
 app.py
 ------
@@ -1235,7 +1261,8 @@ def sidebar():
 
     with st.sidebar:
         toggle_icon = "☰" if collapsed else "✕"
-        st.button(toggle_icon, key="sidebar_toggle", help=t("toggle_sidebar"), on_click=_toggle_sidebar)
+        toggle_help = t("sidebar_maximize") if collapsed else t("sidebar_minimize")
+        st.button(toggle_icon, key="sidebar_toggle", help=toggle_help, on_click=_toggle_sidebar)
 
         if collapsed:
             st.markdown('<div class="brand-mark brand-mark-collapsed">🌿</div>', unsafe_allow_html=True)
@@ -1853,7 +1880,8 @@ def _render_preferences():
             status = t("pref_dark_mode_on") if st.session_state.dark_mode else t("pref_dark_mode_off")
             st.markdown(f'<div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:0.6rem;">{status}</div>', unsafe_allow_html=True)
             icon = "☀️" if st.session_state.dark_mode else "🌙"
-            if st.button(f"{icon}  {t('toggle_appearance')}", key="profile_toggle_theme"):
+            appearance_label = t("theme_light") if st.session_state.dark_mode else t("theme_dark")
+            if st.button(f"{icon}  {appearance_label}", key="profile_toggle_theme"):
                 st.session_state.dark_mode = not st.session_state.dark_mode
                 st.rerun()
         with pcol2:
