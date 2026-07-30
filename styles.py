@@ -38,7 +38,7 @@ Semantic variable contract (used everywhere, in this file and in app.py):
 FONT_IMPORT = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 """
 
 
@@ -53,56 +53,56 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     if dark_mode:
         palette = f"""
         /* ---------------- DARK MODE PALETTE ---------------- */
-        --background: #12170f;
-        --surface: #1a201a;
-        --card: #202822;
-        --card-hover: #262f27;
-        --primary: #7fae6c;
-        --primary-hover: #96c283;
-        --primary-soft: rgba(127,174,108,0.16);
-        --secondary-accent: #d7ab6f;
-        --text-primary: #f5f7f0;
-        --text-secondary: #cdd4c6;
-        --text-muted: #98a293;
-        --text-on-primary: #10190f;
-        --border: rgba(245,247,240,0.10);
-        --border-strong: rgba(245,247,240,0.22);
-        --input-bg: #1c2420;
-        --placeholder: #7d8779;
-        --shadow: 0 10px 30px rgba(0,0,0,0.45);
-        --shadow-strong: 0 18px 46px rgba(0,0,0,0.55);
-        --success: #8fcf82; --success-bg: rgba(143,207,130,0.14);
-        --error: #f0a396; --error-bg: rgba(240,163,150,0.14);
-        --warning: #f0cf8f; --warning-bg: rgba(240,207,143,0.14);
-        --info: #90bce0; --info-bg: rgba(144,188,224,0.14);
-        --focus-ring: #96c283;
+        --background: #10130f;
+        --surface: #1c201a;
+        --card: #1c201a;
+        --card-hover: #232920;
+        --primary: #8fbf7a;
+        --primary-hover: #a5d18f;
+        --primary-soft: rgba(143,191,122,0.14);
+        --secondary-accent: #d3a876;
+        --text-primary: #f3f1e8;
+        --text-secondary: #c7c4b5;
+        --text-muted: #8c8a7c;
+        --text-on-primary: #10190d;
+        --border: rgba(245,243,235,0.09);
+        --border-strong: rgba(245,243,235,0.18);
+        --input-bg: #171a14;
+        --placeholder: #8c8a7c;
+        --shadow: 0 10px 28px rgba(0,0,0,0.45);
+        --shadow-strong: 0 24px 56px rgba(0,0,0,0.55);
+        --success: #8fbf7a; --success-bg: rgba(143,191,122,0.14);
+        --error: #e2a296; --error-bg: rgba(226,162,150,0.14);
+        --warning: #e2c896; --warning-bg: rgba(226,200,150,0.14);
+        --info: #96b8d6; --info-bg: rgba(150,184,214,0.14);
+        --focus-ring: rgba(143,191,122,0.4);
         """
     else:
         palette = f"""
         /* ---------------- LIGHT MODE PALETTE ---------------- */
-        --background: #f7f2e7;
-        --surface: #f0e9da;
+        --background: #f8f5ef;
+        --surface: #f1ece1;
         --card: #ffffff;
-        --card-hover: #fbf8f0;
-        --primary: #4d6b3d;
-        --primary-hover: #3a5230;
-        --primary-soft: rgba(77,107,61,0.10);
-        --secondary-accent: #a2703b;
-        --text-primary: #232821;
-        --text-secondary: #374151;
-        --text-muted: #6b6a5e;
-        --text-on-primary: #ffffff;
-        --border: #e3dac4;
-        --border-strong: #cdc2a3;
-        --input-bg: #ffffff;
-        --placeholder: #7c7a6c;
-        --shadow: 0 10px 26px rgba(90,73,42,0.10);
-        --shadow-strong: 0 20px 44px rgba(90,73,42,0.16);
-        --success: #2f7a4d; --success-bg: #e7f4ea;
-        --error: #b3402f; --error-bg: #fbe9e6;
-        --warning: #9a6d1f; --warning-bg: #faf0dc;
-        --info: #2f5f8a; --info-bg: #e7f0f8;
-        --focus-ring: #4d6b3d;
+        --card-hover: #fbf9f4;
+        --primary: #5b7a52;
+        --primary-hover: #46603f;
+        --primary-soft: rgba(91,122,82,0.10);
+        --secondary-accent: #b08650;
+        --text-primary: #262620;
+        --text-secondary: #58564c;
+        --text-muted: #8b8a7c;
+        --text-on-primary: #fbfaf6;
+        --border: #e4ddcb;
+        --border-strong: #d3c8ac;
+        --input-bg: #f1ece1;
+        --placeholder: #8b8a7c;
+        --shadow: 0 8px 24px rgba(38,38,32,0.08);
+        --shadow-strong: 0 20px 48px rgba(38,38,32,0.14);
+        --success: #5b7a52; --success-bg: #eaf1e6;
+        --error: #a6472f; --error-bg: #f8e9e4;
+        --warning: #9a7a3f; --warning-bg: #f7f0e0;
+        --info: #4a6f8a; --info-bg: #e8f0f5;
+        --focus-ring: rgba(91,122,82,0.35);
         """
 
     # Collapsed-state overrides: a narrow icon-only rail. Scoped to
@@ -247,11 +247,12 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         margin: 0 auto 0.7rem auto;
     }}
     .auth-brand-tagline {{
+        font-family: 'IBM Plex Mono', monospace;
         color: var(--text-muted);
-        letter-spacing: 0.14em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        font-size: 0.76rem;
-        font-weight: 600;
+        font-size: 0.68rem;
+        font-weight: 500;
     }}
 
     /* ---- Language selector, blended into the top bar ---- */
@@ -291,6 +292,37 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         padding: 0.6rem 0.4rem;
     }}
     .auth-card-tag {{ display: none; }}
+
+    /* ---- Signature: a single hand-drawn vine that grows up the card's
+       left edge on load — the one bold gesture on this page. Rendered as
+       an inline SVG so the stroke can be animated with dashoffset; three
+       gold "buds" fade in after the line finishes drawing. Everything
+       else on the page stays deliberately quiet. ---- */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) {{
+        margin-left: 14px !important;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag)::after {{
+        content: "";
+        position: absolute;
+        top: 26px;
+        left: -14px;
+        width: 28px;
+        height: 230px;
+        pointer-events: none;
+        background-repeat: no-repeat;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='230' viewBox='0 0 28 230'%3E%3Cpath d='M14 4 C 6 30, 22 55, 12 82 S 4 130, 16 158 S 8 200, 14 226' fill='none' stroke='%235b7a52' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='46' r='3.2' fill='%23b08650'/%3E%3Ccircle cx='9' cy='104' r='3.2' fill='%23b08650'/%3E%3Ccircle cx='19' cy='172' r='3.2' fill='%23b08650'/%3E%3C/svg%3E");
+        opacity: 0;
+        animation: vine-fade-in 0.6s ease-out 0.3s forwards;
+    }}
+    @keyframes vine-fade-in {{
+        to {{ opacity: 1; }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag)::after {{
+            animation: none;
+            opacity: 1;
+        }}
+    }}
 
     /* ---- Segmented pill tabs (Sign In / Create Account, and reused
        app-wide for a consistent tab language on e.g. the Generate page) ---- */
@@ -714,11 +746,15 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     textarea,
     .stTextInput input,
     .stTextArea textarea {{
-        border-radius: 14px !important;
+        border-radius: 10px !important;
         background: var(--input-bg) !important;
-        border: 1.5px solid var(--border-strong) !important;
+        border: 1.5px solid var(--border) !important;
         color: var(--text-primary) !important;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }}
+    div[data-baseweb="input"]:hover,
+    div[data-baseweb="select"] > div:hover {{
+        border-color: var(--border-strong) !important;
     }}
     .stTextInput input, .stTextArea textarea {{
         padding: 0.65rem 0.9rem !important;
