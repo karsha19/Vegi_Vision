@@ -1,3 +1,10 @@
+"""
+app.py
+------
+Vegetable Recipe Maker — an editorial / bento-grid Streamlit app powered
+by Gemini + SQLite. Run with: streamlit run app.py
+"""
+
 import os
 import base64
 import io
@@ -15,7 +22,7 @@ from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 load_dotenv()
 
 st.set_page_config(
-    page_title="VegiVision — Vegetable Recipe Maker",
+    page_title="Verdant — Vegetable Recipe Maker",
     page_icon="🌿",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -26,7 +33,7 @@ db.init_db()
 CUISINES = ["Any", "Italian", "Indian", "Thai", "Mexican", "Mediterranean", "Chinese", "American", "French", "Middle Eastern"]
 
 
-
+# ------------------------------------------------------------- session ----
 
 def init_session():
     defaults = {
@@ -53,7 +60,10 @@ init_session()
 
 def inject_css():
     st.markdown(FONT_IMPORT, unsafe_allow_html=True)
-   
+    # Defensive: if styles.py on disk is an older copy that doesn't accept
+    # sidebar_collapsed yet, fall back to the 1-argument call instead of
+    # crashing with a TypeError. This can happen if the project's files
+    # get out of sync (e.g. only app.py was updated, not styles.py).
     try:
         css = get_theme_css(st.session_state.dark_mode, st.session_state.sidebar_collapsed)
     except TypeError:
@@ -78,6 +88,7 @@ def inject_css():
 inject_css()
 
 
+# ------------------------------------------------------------ helpers -----
 
 def image_to_b64(img: Image.Image) -> str:
     buf = io.BytesIO()
@@ -150,14 +161,23 @@ def mini_card():
 # --------------------------------------------------------------- auth -----
 
 def auth_screen():
+    # Hidden marker: everything else in this function renders as normal
+    # Streamlit content, but this single tag lets styles.py detect "we're
+    # on the signed-out screen" via a CSS :has() selector and apply the
+    # decorative background + leaf motif only here — nowhere else in the
+    # app is affected.
+    st.markdown('<div class="auth-page-marker"></div>', unsafe_allow_html=True)
+
     top_l, top_r = st.columns([4, 1])
     with top_r:
+        st.markdown('<div class="auth-lang-select">', unsafe_allow_html=True)
         lang_codes = list(LANGUAGES.keys())
         lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
         current_idx = lang_codes.index(st.session_state.language)
         chosen = st.selectbox(
             t("language_label"), lang_labels, index=current_idx, key="auth_lang_select", label_visibility="collapsed"
         )
+        st.markdown('</div>', unsafe_allow_html=True)
         chosen_code = lang_codes[lang_labels.index(chosen)]
         if chosen_code != st.session_state.language:
             st.session_state.language = chosen_code
@@ -165,11 +185,11 @@ def auth_screen():
 
     st.markdown(
         f"""
-        <div style="text-align:center; margin-top:1rem; margin-bottom:1rem;">
-            <div style="font-family:'Fraunces',serif; font-size:2.4rem; font-weight:700;">🌿 {t('app_brand')}</div>
-            <div style="color:var(--text-muted); letter-spacing:0.12em; text-transform:uppercase; font-size:0.78rem;">
-                {t('auth_subtitle')}
-            </div>
+        <div class="auth-brand-wrap">
+            <div class="auth-brand-leaf">🌿</div>
+            <div class="auth-brand-name">{t('app_brand')}</div>
+            <div class="auth-brand-divider"></div>
+            <div class="auth-brand-tagline">{t('auth_subtitle')}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -177,7 +197,8 @@ def auth_screen():
 
     col_a, col_center, col_b = st.columns([1, 1.2, 1])
     with col_center:
-        with card(accent=True):
+        with st.container(border=True):
+            st.markdown('<div class="auth-card-tag"></div>', unsafe_allow_html=True)
             tabs = st.tabs([t("tab_signin"), t("tab_register")])
 
             with tabs[0]:
@@ -224,7 +245,7 @@ def auth_screen():
                                 st.error(t("err_username_exists"))
 
 
-
+# ------------------------------------------------------------ sidebar -----
 
 def _toggle_sidebar():
     st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
@@ -310,6 +331,7 @@ def sidebar():
             )
 
 
+# --------------------------------------------------------- recipe card ----
 
 def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True):
     is_fav = db.is_favorite(user_id, recipe_id) if (recipe_id and user_id) else False

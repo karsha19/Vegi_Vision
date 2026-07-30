@@ -1,3 +1,40 @@
+"""
+styles.py
+---------
+Centralized theme system for Verdant.
+
+Every color in the app is driven by CSS custom properties defined here in
+ONE place. Components never hardcode hex values, `white`, `#fff`, `#000`,
+etc. — they reference a semantic variable (--text-primary, --card,
+--border, ...) and get the correct value automatically for whichever mode
+(light/dark) is active. Toggling dark mode simply swaps the variable
+values in :root; nothing else in the app needs to change.
+
+Semantic variable contract (used everywhere, in this file and in app.py):
+
+    --background        page background
+    --surface            secondary background (sidebar, alt sections)
+    --card                card / panel background
+    --card-hover          card background on hover
+    --primary             brand green (buttons, active states, accents)
+    --primary-hover        brand green, hover/pressed state
+    --primary-soft         low-opacity tint of primary (badges, highlights)
+    --secondary-accent      warm brown accent (eyebrows, secondary pills)
+    --text-primary          headings / high-emphasis text
+    --text-secondary        body copy
+    --text-muted             captions, helper text, timestamps
+    --text-on-primary        text placed on top of a --primary background
+    --border                 default border color
+    --border-strong          higher-contrast border (inputs, dropzone)
+    --input-bg                background for inputs/selects/textareas
+    --placeholder              input placeholder text
+    --shadow                   card / elevation shadow
+    --shadow-strong             stronger shadow (modals, popovers)
+    --success / --error / --warning / --info    status colors (toasts/alerts)
+    --success-bg / --error-bg / --warning-bg / --info-bg   status backgrounds
+    --focus-ring                 focus outline color for accessibility
+"""
+
 FONT_IMPORT = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -120,6 +157,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .stApp {{
         background: var(--background);
         color: var(--text-secondary);
+        transition: background-color 0.35s ease, color 0.35s ease;
     }}
 
     /* ---------- Typography ---------- */
@@ -139,6 +177,172 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     a:hover {{
         color: var(--primary-hover);
         text-decoration: underline;
+    }}
+
+    /* ================= AUTH / LOGIN PAGE ================= */
+    /* A hidden marker rendered at the top of auth_screen() lets this
+       target the app background ONLY while the person is signed out,
+       using the same :has() pattern already used for cards elsewhere
+       in this file — no separate page/route system needed. */
+    .stApp:has(.auth-page-marker) {{
+        background:
+            radial-gradient(circle at 12% 8%, var(--primary-soft), transparent 42%),
+            radial-gradient(circle at 88% 92%, var(--primary-soft), transparent 40%),
+            radial-gradient(circle at 90% 6%, var(--secondary-accent) 0%, transparent 2.4%),
+            radial-gradient(circle at 6% 90%, var(--secondary-accent) 0%, transparent 2.2%),
+            var(--background);
+        background-attachment: fixed;
+        transition: background-color 0.35s ease;
+    }}
+    .stApp:has(.auth-page-marker) .block-container {{
+        max-width: 1300px;
+    }}
+
+    /* Soft, very-low-opacity leaf motif behind the auth card — decorative
+       only, so it's an ::before layer rather than real content, and it
+       inherits var(--primary) so it's always on-brand in both themes. */
+    .auth-page-marker {{
+        display: block;
+        height: 0;
+    }}
+    .auth-page-marker::before {{
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.05;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cpath d='M60 10c22 8 40 26 40 50 0 22-18 40-40 40S20 82 20 60c0-24 18-42 40-50z' fill='none' stroke='%234d6b3d' stroke-width='2'/%3E%3Cpath d='M60 10v90' stroke='%234d6b3d' stroke-width='2'/%3E%3C/svg%3E");
+        background-size: 220px 220px;
+        background-repeat: repeat;
+    }}
+
+    /* ---- Logo + tagline ---- */
+    .auth-brand-wrap {{
+        text-align: center;
+        margin: 2.4rem 0 2.2rem 0;
+        position: relative;
+        z-index: 1;
+    }}
+    .auth-brand-leaf {{
+        font-size: 2rem;
+        display: inline-block;
+        margin-bottom: 0.2rem;
+        filter: drop-shadow(0 4px 10px var(--primary-soft));
+    }}
+    .auth-brand-name {{
+        font-family: 'Fraunces', serif;
+        font-size: 2.7rem;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        color: var(--text-primary);
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+    }}
+    .auth-brand-divider {{
+        width: 46px;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary-accent));
+        margin: 0 auto 0.7rem auto;
+    }}
+    .auth-brand-tagline {{
+        color: var(--text-muted);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.76rem;
+        font-weight: 600;
+    }}
+
+    /* ---- Language selector, blended into the top bar ---- */
+    .auth-lang-select div[data-baseweb="select"] > div {{
+        background: transparent !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 999px !important;
+        font-size: 0.8rem;
+    }}
+    .auth-lang-select div[data-baseweb="select"] > div:hover {{
+        border-color: var(--primary) !important;
+    }}
+
+    /* ---- The auth card itself ----
+       A premium, slightly glassy card: bigger radius, brand-gradient
+       top edge, generous internal breathing room. Targeted via the
+       same hidden-marker + :has() technique as card()/mini_card(). */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) {{
+        background: var(--card) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 28px !important;
+        box-shadow: var(--shadow-strong) !important;
+        padding: 0.4rem !important;
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag)::before {{
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary-accent), var(--primary));
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) > div {{
+        gap: 0.4rem;
+        padding: 0.6rem 0.4rem;
+    }}
+    .auth-card-tag {{ display: none; }}
+
+    /* ---- Segmented pill tabs (Sign In / Create Account, and reused
+       app-wide for a consistent tab language on e.g. the Generate page) ---- */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 0.25rem;
+        border-bottom: none;
+        background: var(--surface);
+        padding: 0.3rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background: transparent;
+        color: var(--text-muted) !important;
+        font-weight: 700;
+        font-size: 0.86rem;
+        border-radius: 999px;
+        padding: 0.55rem 1.2rem;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }}
+    .stTabs [data-baseweb="tab"] p {{
+        color: inherit !important;
+    }}
+    .stTabs [data-baseweb="tab"]:hover {{
+        color: var(--text-primary) !important;
+        background: var(--card-hover);
+    }}
+    .stTabs [aria-selected="true"] {{
+        color: var(--text-on-primary) !important;
+        background: var(--primary) !important;
+        box-shadow: var(--shadow);
+    }}
+    .stTabs [aria-selected="true"] p {{
+        color: var(--text-on-primary) !important;
+    }}
+    .stTabs [data-baseweb="tab-highlight"],
+    .stTabs [data-baseweb="tab-border"] {{
+        display: none !important;
+    }}
+    .stTabs [data-testid="stTabsPanel"] {{
+        padding-top: 1.2rem;
+    }}
+
+    /* ---- Password show/hide toggle, styled to match the input chrome ---- */
+    button[aria-label="Show password"],
+    button[aria-label="Hide password"] {{
+        color: var(--text-muted) !important;
+        transition: color 0.15s ease;
+    }}
+    button[aria-label="Show password"]:hover,
+    button[aria-label="Hide password"]:hover {{
+        color: var(--primary) !important;
     }}
 
     /* ================= SIDEBAR ================= */
@@ -457,21 +661,21 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     /* ---------- Buttons (main content) ---------- */
     .stButton > button {{
-        background: var(--primary);
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
         color: var(--text-on-primary) !important;
         border: none;
         border-radius: 14px;
-        padding: 0.6rem 1.4rem;
+        padding: 0.65rem 1.5rem;
         font-weight: 700;
         font-size: 0.92rem;
         box-shadow: var(--shadow);
-        transition: all 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }}
     .stButton > button p {{
         color: var(--text-on-primary) !important;
     }}
     .stButton > button:hover {{
-        background: var(--primary-hover);
+        filter: brightness(1.05);
         transform: translateY(-2px);
         box-shadow: var(--shadow-strong);
     }}
@@ -481,13 +685,26 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
     .stButton > button:active {{
         transform: translateY(0);
+        filter: brightness(0.97);
     }}
     .stFormSubmitButton > button {{
-        background: var(--primary);
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
         color: var(--text-on-primary) !important;
+        width: 100%;
+        border-radius: 14px;
+        padding: 0.7rem 1.5rem;
+        font-weight: 700;
+        box-shadow: var(--shadow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }}
     .stFormSubmitButton > button:hover {{
-        background: var(--primary-hover);
+        filter: brightness(1.05);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-strong);
+    }}
+    .stFormSubmitButton > button:active {{
+        transform: translateY(0);
+        filter: brightness(0.97);
     }}
 
     /* ---------- Text inputs / selects / textareas ---------- */
@@ -497,10 +714,14 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     textarea,
     .stTextInput input,
     .stTextArea textarea {{
-        border-radius: 12px !important;
+        border-radius: 14px !important;
         background: var(--input-bg) !important;
-        border: 1px solid var(--border-strong) !important;
+        border: 1.5px solid var(--border-strong) !important;
         color: var(--text-primary) !important;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }}
+    .stTextInput input, .stTextArea textarea {{
+        padding: 0.65rem 0.9rem !important;
     }}
     .stTextInput input::placeholder,
     .stTextArea textarea::placeholder {{
@@ -511,7 +732,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-baseweb="select"] > div:focus-within,
     .stTextArea textarea:focus {{
         border-color: var(--primary) !important;
-        box-shadow: 0 0 0 3px var(--primary-soft) !important;
+        box-shadow: 0 0 0 4px var(--primary-soft) !important;
     }}
     .stTextInput > label,
     .stSelectbox > label,
@@ -543,33 +764,6 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     ul[data-testid="stSelectboxVirtualDropdown"] li:hover,
     div[data-baseweb="popover"] ul li:hover {{
         background: var(--primary-soft) !important;
-    }}
-
-    /* ---------- Tabs ---------- */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 0.4rem;
-        border-bottom: 1px solid var(--border);
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        background: transparent;
-        color: var(--text-muted) !important;
-        font-weight: 600;
-        border-radius: 10px 10px 0 0;
-        padding: 0.5rem 1rem;
-    }}
-    .stTabs [data-baseweb="tab"] p {{
-        color: inherit !important;
-    }}
-    .stTabs [data-baseweb="tab"]:hover {{
-        color: var(--text-primary) !important;
-        background: var(--surface);
-    }}
-    .stTabs [aria-selected="true"] {{
-        color: var(--primary) !important;
-        border-bottom: 2px solid var(--primary);
-    }}
-    .stTabs [aria-selected="true"] p {{
-        color: var(--primary) !important;
     }}
 
     /* ---------- File uploader / upload box ---------- */
