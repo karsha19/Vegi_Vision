@@ -224,11 +224,17 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         position: relative;
         z-index: 1;
     }}
-    .auth-brand-leaf {{
-        font-size: 2rem;
-        display: inline-block;
-        margin-bottom: 0.2rem;
-        filter: drop-shadow(0 4px 10px var(--primary-soft));
+    .auth-brand-icon-chip {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        background: var(--primary-soft);
+        font-size: 1.6rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border);
     }}
     .auth-brand-name {{
         font-family: 'Fraunces', serif;
@@ -253,6 +259,27 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         text-transform: uppercase;
         font-size: 0.68rem;
         font-weight: 500;
+    }}
+
+    /* ---- Theme toggle button on the sign-in screen — a small round
+       chip that mirrors the language selector's pill chrome so the two
+       controls read as one consistent top-bar unit. ---- */
+    .st-key-auth_theme_toggle button {{
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        padding: 0 !important;
+        border-radius: 999px !important;
+        background: var(--card) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: none !important;
+        font-size: 1rem;
+        transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }}
+    .st-key-auth_theme_toggle button:hover {{
+        background: var(--card-hover) !important;
+        border-color: var(--border-strong) !important;
+        transform: rotate(-8deg);
     }}
 
     /* ---- Language selector, blended into the top bar ---- */

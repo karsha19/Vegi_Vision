@@ -170,23 +170,30 @@ def auth_screen():
 
     top_l, top_r = st.columns([4, 1])
     with top_r:
-        st.markdown('<div class="auth-lang-select">', unsafe_allow_html=True)
-        lang_codes = list(LANGUAGES.keys())
-        lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
-        current_idx = lang_codes.index(st.session_state.language)
-        chosen = st.selectbox(
-            t("language_label"), lang_labels, index=current_idx, key="auth_lang_select", label_visibility="collapsed"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-        chosen_code = lang_codes[lang_labels.index(chosen)]
-        if chosen_code != st.session_state.language:
-            st.session_state.language = chosen_code
-            st.rerun()
+        toggle_col, lang_col = st.columns([1, 2.4])
+        with toggle_col:
+            theme_icon = "☀️" if st.session_state.dark_mode else "🌙"
+            if st.button(theme_icon, key="auth_theme_toggle", help=t("theme_light") if st.session_state.dark_mode else t("theme_dark")):
+                st.session_state.dark_mode = not st.session_state.dark_mode
+                st.rerun()
+        with lang_col:
+            st.markdown('<div class="auth-lang-select">', unsafe_allow_html=True)
+            lang_codes = list(LANGUAGES.keys())
+            lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
+            current_idx = lang_codes.index(st.session_state.language)
+            chosen = st.selectbox(
+                t("language_label"), lang_labels, index=current_idx, key="auth_lang_select", label_visibility="collapsed"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+            chosen_code = lang_codes[lang_labels.index(chosen)]
+            if chosen_code != st.session_state.language:
+                st.session_state.language = chosen_code
+                st.rerun()
 
     st.markdown(
         f"""
         <div class="auth-brand-wrap">
-            <div class="auth-brand-leaf">🌿</div>
+            <div class="auth-brand-icon-chip">🌿</div>
             <div class="auth-brand-name">{t('app_brand')}</div>
             <div class="auth-brand-divider"></div>
             <div class="auth-brand-tagline">{t('auth_subtitle')}</div>
