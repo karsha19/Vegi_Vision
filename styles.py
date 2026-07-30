@@ -172,6 +172,20 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-secondary);
     }}
 
+    /* ---- Remove Streamlit's native "<<" collapse arrow ----
+       The app has its own custom ☰ / ✕ toggle button (see sidebar() in
+       app.py), so Streamlit's built-in collapse control is redundant
+       clutter — hide it completely, in both expanded and collapsed
+       states, without touching anything else in the sidebar. */
+    button[data-testid="stSidebarCollapseButton"],
+    div[data-testid="stSidebarCollapseButton"],
+    button[data-testid="stExpandSidebarButton"],
+    div[data-testid="stExpandSidebarButton"] {{
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }}
+
     /* ---- Hamburger / close toggle ----
        Scoped by Streamlit's key-based class (added automatically for
        every widget with a `key=`) rather than :first-of-type — each
