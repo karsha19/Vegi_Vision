@@ -1,6 +1,19 @@
-streamlit>=1.58.0
-google-genai>=0.3.0
-Pillow>=10.0.0
-python-dotenv>=1.0.0
-SpeechRecognition>=3.10.0
-streamlit-mic-recorder>=0.0.8
+# Upper bounds added deliberately: this app's CSS (styles.py) targets
+# specific Streamlit internals (data-testid / data-baseweb selectors)
+# that have changed across releases before. A bare ">=" lower bound means
+# a fresh deployment install can pull in a newer Streamlit (or library)
+# months after localhost was last set up, silently breaking those
+# selectors and making the deployed app look different from localhost
+# even though the code is identical.
+#
+# For a byte-for-byte match with your working local environment, replace
+# this file with the exact output of `pip freeze` from the venv you've
+# been developing/testing against:
+#   pip freeze > requirements.txt
+
+streamlit>=1.58.0,<1.60.0
+google-genai>=0.3.0,<1.0.0
+Pillow>=10.0.0,<12.0.0
+python-dotenv>=1.0.0,<2.0.0
+SpeechRecognition>=3.10.0,<4.0.0
+streamlit-mic-recorder>=0.0.8,<0.1.0
