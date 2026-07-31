@@ -29,7 +29,7 @@ _LIVE_MIC_HTML = r"""<!DOCTYPE html>
 <meta charset="UTF-8" />
 <style>
   :root { color-scheme: light dark; }
-  * { box-sizing: border-box; }
+  :root { color-scheme: light dark; }
   body {
     margin: 0;
     font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -322,9 +322,9 @@ _ERROR_KEY_MAP = {
 
 def _init_voice_session():
     defaults = {
-        "voice_status": "idle",       # idle | processing | done | error
+        "voice_status": "idle",                                         
         "voice_error": None,
-        "voice_raw_text": "",         # full recognized sentence, for context
+        "voice_raw_text": "",                                                
     }
     for k, v in defaults.items():
         if k not in st.session_state:

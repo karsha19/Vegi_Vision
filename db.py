@@ -8,9 +8,9 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "veggie_recipes.db")
 
-# Guards so the (cheap-but-not-free) DDL/PRAGMA/migration work in init_db()
-# only ever runs once per server process, not on every Streamlit script
-# rerun (Streamlit reruns the whole script on every widget interaction).
+                                                                           
+                                                                       
+                                                                        
 _init_lock = threading.Lock()
 _initialized = False
 
@@ -20,10 +20,10 @@ def get_conn():
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    # WAL lets reads proceed concurrently with writes instead of blocking
-    # on a single file lock — the single biggest sqlite win for a
-    # multi-user deployed app. synchronous=NORMAL is the recommended,
-    # still-safe pairing with WAL (full durability isn't needed here).
+                                                                         
+                                                                 
+                                                                     
+                                                                      
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     try:
@@ -85,10 +85,10 @@ def init_db():
                     FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE
                 )
             """)
-            # Indexes matching the app's actual access patterns (every recipe/
-            # favorite lookup filters by user_id; favorites also join on
-            # recipe_id) — without these, every page load does a full table
-            # scan that only gets slower as a user's history grows.
+                                                                              
+                                                                        
+                                                                           
+                                                                   
             conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_user_id ON recipes(user_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_user_created ON recipes(user_id, created_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)")
@@ -97,7 +97,7 @@ def init_db():
         _initialized = True
 
 
-# auth 
+       
 
 def _hash_password(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
@@ -133,7 +133,7 @@ def get_user_by_id(user_id: int):
     return dict(row) if row else None
 
 
-# recipes
+         
 
 def save_recipe(user_id: int, recipe: dict) -> int:
     with get_conn() as conn:
@@ -225,7 +225,7 @@ def get_distinct_cuisines(user_id: int):
     return sorted({r["cuisine"] for r in rows})
 
 
-#  favorites 
+             
 
 def toggle_favorite(user_id: int, recipe_id: int) -> bool:
     """Returns True if now favorited, False if removed."""
@@ -274,7 +274,7 @@ def get_user_stats(user_id: int) -> dict:
 
 
 
-# profile management
+                    
 
 def _migrate_users_table():
     with get_conn() as conn:
