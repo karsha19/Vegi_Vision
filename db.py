@@ -2,17 +2,30 @@ import sqlite3
 import json
 import hashlib
 import os
+import threading
 from contextlib import contextmanager
 from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "veggie_recipes.db")
 
+# Guards so the (cheap-but-not-free) DDL/PRAGMA/migration work in init_db()
+# only ever runs once per server process, not on every Streamlit script
+# rerun (Streamlit reruns the whole script on every widget interaction).
+_init_lock = threading.Lock()
+_initialized = False
+
 
 @contextmanager
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL lets reads proceed concurrently with writes instead of blocking
+    # on a single file lock — the single biggest sqlite win for a
+    # multi-user deployed app. synchronous=NORMAL is the recommended,
+    # still-safe pairing with WAL (full durability isn't needed here).
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     try:
         yield conn
         conn.commit()
@@ -21,52 +34,67 @@ def get_conn():
 
 
 def init_db():
-    with get_conn() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                salt TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS recipes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                title TEXT NOT NULL,
-                cuisine TEXT,
-                vegetables TEXT,
-                servings TEXT,
-                prep_time TEXT,
-                cook_time TEXT,
-                difficulty TEXT,
-                calories TEXT,
-                ingredients TEXT,
-                instructions TEXT,
-                nutrition TEXT,
-                tips TEXT,
-                substitutions TEXT,
-                storage TEXT,
-                image_data TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS favorites (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                recipe_id INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                UNIQUE(user_id, recipe_id),
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-                FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE
-            )
-        """)
-        _migrate_users_table()
+    global _initialized
+    if _initialized:
+        return
+    with _init_lock:
+        if _initialized:
+            return
+        with get_conn() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    salt TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS recipes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    cuisine TEXT,
+                    vegetables TEXT,
+                    servings TEXT,
+                    prep_time TEXT,
+                    cook_time TEXT,
+                    difficulty TEXT,
+                    calories TEXT,
+                    ingredients TEXT,
+                    instructions TEXT,
+                    nutrition TEXT,
+                    tips TEXT,
+                    substitutions TEXT,
+                    storage TEXT,
+                    image_data TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS favorites (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    recipe_id INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(user_id, recipe_id),
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                    FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE
+                )
+            """)
+            # Indexes matching the app's actual access patterns (every recipe/
+            # favorite lookup filters by user_id; favorites also join on
+            # recipe_id) — without these, every page load does a full table
+            # scan that only gets slower as a user's history grows.
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_user_id ON recipes(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_user_created ON recipes(user_id, created_at DESC)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_recipe_id ON favorites(recipe_id)")
+            _migrate_users_table()
+        _initialized = True
 
 
 # auth 
@@ -163,6 +191,18 @@ def get_user_recipes(user_id: int, search: str = "", cuisine_filter: str = "All"
     query += " ORDER BY created_at DESC"
     with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
+    return [_row_to_recipe(r) for r in rows]
+
+
+def get_recent_recipes(user_id: int, limit: int = 5):
+    """Same ordering as get_user_recipes but pushes the LIMIT down into
+    SQL instead of fetching every recipe a user has ever saved just to
+    slice off the first few in Python."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM recipes WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
     return [_row_to_recipe(r) for r in rows]
 
 

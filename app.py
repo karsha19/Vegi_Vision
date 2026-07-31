@@ -51,6 +51,8 @@ def init_session():
         "profile_edit_mode": False,
         "profile_confirm_delete": False,
         "identify_in_progress": False,
+        "generate_in_progress": False,
+        "data_version": 0,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -92,16 +94,62 @@ inject_css()
 
 # ------------------------------------------------------------ helpers -----
 
-def image_to_b64(img: Image.Image) -> str:
+def bump_data_version():
+    """Call this after any write that changes a user's recipes/favorites
+    (save, delete, toggle favorite). Bumping the counter changes the cache
+    key below, so the next read picks up fresh data immediately — while
+    every *other* rerun in between (switching tabs, typing in an unrelated
+    field, toggling a filter) reuses the cached result instead of re-
+    querying sqlite for data that hasn't changed."""
+    st.session_state.data_version = st.session_state.get("data_version", 0) + 1
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_user_recipes(user_id: int, version: int, search: str, cuisine_filter: str, difficulty_filter: str):
+    return db.get_user_recipes(user_id, search, cuisine_filter, difficulty_filter)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_recent_recipes(user_id: int, version: int, limit: int = 5):
+    return db.get_recent_recipes(user_id, limit)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_favorite_recipes(user_id: int, version: int):
+    return db.get_favorite_recipes(user_id)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_user_stats(user_id: int, version: int):
+    return db.get_user_stats(user_id)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_distinct_cuisines(user_id: int, version: int):
+    return db.get_distinct_cuisines(user_id)
+
+
+def image_to_b64(img: Image.Image, max_dimension: int = 640, quality: int = 80) -> str:
+    """Downscale + JPEG-compress before storing. These images get
+    re-embedded as inline base64 <img> tags on every recipe card (recent
+    list, history, favorites) — at full camera resolution/PNG that turns
+    into megabytes of duplicated HTML per page load. 640px/JPEG-80 is
+    plenty for a card thumbnail and shrinks the payload dramatically."""
+    img = img.convert("RGB")
+    width, height = img.size
+    largest_side = max(width, height)
+    if largest_side > max_dimension:
+        scale = max_dimension / float(largest_side)
+        img = img.resize((max(1, int(width * scale)), max(1, int(height * scale))), Image.LANCZOS)
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, format="JPEG", quality=quality, optimize=True)
     return base64.b64encode(buf.getvalue()).decode()
 
 
 def b64_to_image_html(b64: str, height="180px") -> str:
     if not b64:
         return ""
-    return f'<img src="data:image/png;base64,{b64}" style="width:100%;height:{height};object-fit:cover;border-radius:16px;margin-bottom:0.7rem;" />'
+    return f'<img src="data:image/jpeg;base64,{b64}" style="width:100%;height:{height};object-fit:cover;border-radius:16px;margin-bottom:0.7rem;" />'
 
 
 def profile_avatar_html(user: dict) -> str:
@@ -111,7 +159,7 @@ def profile_avatar_html(user: dict) -> str:
     elsewhere."""
     pic = user.get("profile_picture") or ""
     if pic:
-        inner = f'<img src="data:image/png;base64,{pic}" />'
+        inner = f'<img src="data:image/jpeg;base64,{pic}" />'
     else:
         name_source = (user.get("display_name") or user.get("username") or "?").strip()
         initials = name_source[:2].upper() if name_source else "?"
@@ -220,12 +268,12 @@ def auth_screen():
                             st.error(t("err_fill_both"))
                         else:
                             with st.spinner(t("msg_checking")):
-                                time.sleep(0.4)
+                                time.sleep(0.15)
                                 user = db.verify_user(username, password)
                             if user:
                                 st.session_state.user = user
                                 st.success(t("msg_welcome_back", name=user["username"]))
-                                time.sleep(0.5)
+                                time.sleep(0.15)
                                 st.rerun()
                             else:
                                 st.error(t("err_invalid_creds"))
@@ -246,7 +294,7 @@ def auth_screen():
                             st.error(t("err_pw_short"))
                         else:
                             with st.spinner(t("msg_setting_up")):
-                                time.sleep(0.4)
+                                time.sleep(0.15)
                                 ok, msg = db.create_user(new_username, new_email, new_password)
                             if ok:
                                 st.success(t("msg_account_created"))
@@ -356,6 +404,7 @@ def render_recipe(recipe: dict, recipe_id=None, user_id=None, show_favorite=True
                 fav_icon = "💚" if is_fav else "🤍"
                 if st.button(fav_icon, key=f"fav_{recipe_id}"):
                     db.toggle_favorite(user_id, recipe_id)
+                    bump_data_version()
                     st.rerun()
 
         pills = []
@@ -520,7 +569,10 @@ def page_generate():
             if final_veggies:
                 st.markdown("".join(f'<span class="pill green">{v}</span>' for v in final_veggies), unsafe_allow_html=True)
 
-            generate_clicked = st.button(f"✨ {t('btn_generate')}", key="generate_btn", use_container_width=True)
+            generate_busy = st.session_state.get("generate_in_progress", False)
+            generate_clicked = st.button(
+                f"✨ {t('btn_generate')}", key="generate_btn", use_container_width=True, disabled=generate_busy
+            )
 
     with col_preview:
         with card(accent=True):
@@ -540,27 +592,38 @@ def page_generate():
         elif not gm.is_configured():
             st.error(t("err_gemini_not_configured2"))
         else:
-            with st.spinner(t("msg_simmering")):
-                try:
-                    recipe_language = LANGUAGES[st.session_state.language]["gemini_name"]
-                    voice_context = st.session_state.get("voice_raw_text") or None
-                    recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language, extra_context=voice_context)
-                    st.session_state.current_recipe = recipe
+            st.session_state.generate_in_progress = True
+            status_slot = st.empty()
+            status_slot.markdown(
+                f'<div class="identify-status-badge">'
+                f'<span class="identify-spinner-dot"></span>{t("msg_simmering")}</div>',
+                unsafe_allow_html=True,
+            )
+            try:
+                recipe_language = LANGUAGES[st.session_state.language]["gemini_name"]
+                voice_context = st.session_state.get("voice_raw_text") or None
+                recipe = gm.generate_recipe(final_veggies, cuisine_choice, recipe_language, extra_context=voice_context)
+                st.session_state.current_recipe = recipe
 
-                    # Automatically persist every generated recipe to the user's
-                    # History — no manual "save" action required. Works for
-                    # recipes generated from an uploaded image, a live camera
-                    # capture, typed/selected vegetables, or voice input, since
-                    # veg_image is populated identically in all of those paths.
-                    recipe_to_save = dict(recipe)
-                    if st.session_state.veg_image is not None:
-                        recipe_to_save["image_data"] = image_to_b64(st.session_state.veg_image)
-                    new_recipe_id = db.save_recipe(st.session_state.user["id"], recipe_to_save)
-                    st.session_state.last_generated_recipe_id = new_recipe_id
+                # Automatically persist every generated recipe to the user's
+                # History — no manual "save" action required. Works for
+                # recipes generated from an uploaded image, a live camera
+                # capture, typed/selected vegetables, or voice input, since
+                # veg_image is populated identically in all of those paths.
+                recipe_to_save = dict(recipe)
+                if st.session_state.veg_image is not None:
+                    recipe_to_save["image_data"] = image_to_b64(st.session_state.veg_image)
+                new_recipe_id = db.save_recipe(st.session_state.user["id"], recipe_to_save)
+                st.session_state.last_generated_recipe_id = new_recipe_id
+                bump_data_version()
 
-                    st.success(t("msg_saved"))
-                except Exception as e:
-                    st.error(t("err_recipe_failed", error=e))
+                status_slot.empty()
+                st.success(t("msg_saved"))
+            except Exception as e:
+                status_slot.empty()
+                st.error(t("err_recipe_failed", error=e))
+            finally:
+                st.session_state.generate_in_progress = False
 
     if st.session_state.current_recipe:
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
@@ -591,6 +654,7 @@ def page_generate():
                     # this only marks it as a favorite, it never inserts a
                     # second history/recipe row.
                     db.toggle_favorite(user_id, gen_recipe_id)
+                    bump_data_version()
                     st.success("Recipe added to Favorites successfully!")
                     st.rerun()
         with discard_col:
@@ -617,7 +681,7 @@ def page_history():
     )
 
     user_id = st.session_state.user["id"]
-    cuisines = [t("option_all")] + db.get_distinct_cuisines(user_id)
+    cuisines = [t("option_all")] + _cached_distinct_cuisines(user_id, st.session_state.data_version)
 
     fcol1, fcol2, fcol3 = st.columns([2, 1, 1])
     with fcol1:
@@ -629,7 +693,7 @@ def page_history():
 
     db_cuisine_filter = "All" if cuisine_filter == t("option_all") else cuisine_filter
     db_difficulty_filter = "All" if difficulty_filter == t("option_all") else difficulty_filter
-    recipes = db.get_user_recipes(user_id, search, db_cuisine_filter, db_difficulty_filter)
+    recipes = _cached_user_recipes(user_id, st.session_state.data_version, search, db_cuisine_filter, db_difficulty_filter)
 
     if not recipes:
         empty_state("📭", t("empty_no_recipes_title"), t("empty_no_recipes_sub"))
@@ -644,9 +708,10 @@ def page_history():
             render_recipe(selected, recipe_id=selected["id"], user_id=user_id)
             if st.button(f"🗑 {t('btn_delete')}", key="delete_btn"):
                 db.delete_recipe(selected["id"], user_id)
+                bump_data_version()
                 st.session_state.selected_recipe_id = None
                 st.success(t("msg_recipe_deleted"))
-                time.sleep(0.4)
+                time.sleep(0.15)
                 st.rerun()
         return
 
@@ -681,7 +746,7 @@ def page_favorites():
         unsafe_allow_html=True,
     )
     user_id = st.session_state.user["id"]
-    favs = db.get_favorite_recipes(user_id)
+    favs = _cached_favorite_recipes(user_id, st.session_state.data_version)
 
     if not favs:
         empty_state("💚", t("empty_no_favorites_title"), t("empty_no_favorites_sub"))
@@ -858,7 +923,7 @@ def _render_profile_edit_form(user: dict):
                     st.session_state.user = db.get_user_by_id(user["id"])
                     st.session_state.profile_edit_mode = False
                     st.success(t("msg_profile_updated"))
-                    time.sleep(0.4)
+                    time.sleep(0.15)
                     st.rerun()
                 else:
                     st.error(msg)
@@ -867,7 +932,7 @@ def _render_profile_edit_form(user: dict):
 def _render_recent_activity(user_id: int):
     st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
     st.markdown(f'<span class="eyebrow">🕰 {t("eyebrow_recent")}</span>', unsafe_allow_html=True)
-    recent = db.get_user_recipes(user_id)[:5]
+    recent = _cached_recent_recipes(user_id, st.session_state.data_version, limit=5)
     if not recent:
         empty_state("🌱", t("empty_no_recent_title"), t("empty_no_recent_sub"))
     else:
@@ -965,7 +1030,7 @@ def _render_account_settings(user: dict):
                 st.session_state.page = "generate"
                 st.session_state.profile_edit_mode = False
                 st.success(t("account_deleted"))
-                time.sleep(0.6)
+                time.sleep(0.2)
                 st.rerun()
             else:
                 st.error(t("error_deleting_account"))
@@ -973,7 +1038,7 @@ def _render_account_settings(user: dict):
 
 def page_profile():
     user = st.session_state.user
-    stats = db.get_user_stats(user["id"])
+    stats = _cached_user_stats(user["id"], st.session_state.data_version)
 
     _render_profile_header(user)
 

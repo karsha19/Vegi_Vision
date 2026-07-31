@@ -17,10 +17,15 @@ GEMINI_MODEL_DEFAULT = "gemini-flash-lite-latest"
 IDENTIFY_TIMEOUT_SECONDS = 20
 IDENTIFY_MAX_DIMENSION = 768  # downscaling this small cuts upload + inference time significantly
 
-# One shared worker pool for the (rare, short-lived) blocking identify
-# calls, so each request gets a real timeout instead of blocking Streamlit's
+# Recipe generation returns a larger JSON payload and does more "thinking",
+# so it gets more headroom than identify — but still a hard ceiling so a
+# stalled request can never hang the app indefinitely.
+GENERATE_RECIPE_TIMEOUT_SECONDS = 45
+
+# One shared worker pool for the (rare, short-lived) blocking Gemini calls,
+# so each request gets a real timeout instead of blocking Streamlit's
 # script thread with no way out if the network stalls.
-_identify_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-identify")
+_gemini_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-gemini")
 
 # Simple bounded in-memory cache: same photo -> same answer, instantly,
 # with no repeat API call. Keyed by a content hash of the (downscaled)
@@ -29,6 +34,14 @@ _identify_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-i
 _identify_cache: dict[str, str] = {}
 _identify_cache_lock = threading.Lock()
 _IDENTIFY_CACHE_MAX_ENTRIES = 100
+
+# The genai.Client wraps its own HTTP connection pool; building a new one
+# per request (per rerun, since Streamlit reruns the whole script on every
+# interaction) throws away connection keep-alive/TLS session reuse for no
+# reason. One client is created per (process, api key) and reused for the
+# life of the process.
+_client_cache: dict[str, "genai.Client"] = {}
+_client_cache_lock = threading.Lock()
 
 
 def _resize_for_api(image: Image.Image, max_dimension: int = IDENTIFY_MAX_DIMENSION) -> Image.Image:
@@ -83,7 +96,15 @@ def _get_client() -> genai.Client:
         raise RuntimeError(
             "GEMINI_API_KEY is not set. Add it to your environment or a .env file before generating recipes."
         )
-    return genai.Client(api_key=api_key)
+    cached = _client_cache.get(api_key)
+    if cached is not None:
+        return cached
+    with _client_cache_lock:
+        cached = _client_cache.get(api_key)
+        if cached is None:
+            cached = genai.Client(api_key=api_key)
+            _client_cache[api_key] = cached
+        return cached
 
 
 def _friendly_api_error(e: genai_errors.APIError) -> RuntimeError:
@@ -146,7 +167,7 @@ def identify_vegetable_from_image(image: Image.Image, timeout: float = IDENTIFY_
             contents=[prompt, api_image],
         )
 
-    future = _identify_executor.submit(_call)
+    future = _gemini_executor.submit(_call)
     try:
         response = future.result(timeout=timeout)
     except FutureTimeoutError:
@@ -218,8 +239,13 @@ Make the recipe realistic, well-balanced, and genuinely cookable at home.
 """
 
 
-def generate_recipe(vegetables: list, cuisine: str = "Any", language: str = "English", extra_context: str = None) -> dict:
-  
+def generate_recipe(
+    vegetables: list,
+    cuisine: str = "Any",
+    language: str = "English",
+    extra_context: str = None,
+    timeout: float = GENERATE_RECIPE_TIMEOUT_SECONDS,
+) -> dict:
     client = _get_client()
     extra_block = ""
     if extra_context and extra_context.strip():
@@ -234,13 +260,25 @@ def generate_recipe(vegetables: list, cuisine: str = "Any", language: str = "Eng
         language=language,
         extra_context_block=extra_block,
     )
-    try:
-        response = client.models.generate_content(
+
+    def _call():
+        return client.models.generate_content(
             model=_get_model_name(),
             contents=prompt,
         )
+
+    future = _gemini_executor.submit(_call)
+    try:
+        response = future.result(timeout=timeout)
+    except FutureTimeoutError:
+        future.cancel()
+        raise RuntimeError(
+            "Recipe generation timed out. This is usually a slow network connection "
+            "or a busy model — please try again in a moment."
+        )
     except genai_errors.APIError as e:
         raise _friendly_api_error(e)
+
     text = response.text or "{}"
     try:
         recipe = _extract_json(text)
