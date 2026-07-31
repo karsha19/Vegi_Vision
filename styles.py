@@ -87,15 +87,15 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         --primary: #5b7a52;
         --primary-hover: #46603f;
         --primary-soft: rgba(91,122,82,0.10);
-        --secondary-accent: #b08650;
+        --secondary-accent: #8a6234;
         --text-primary: #262620;
-        --text-secondary: #58564c;
-        --text-muted: #8b8a7c;
+        --text-secondary: #423f36;
+        --text-muted: #6b6a5c;
         --text-on-primary: #fbfaf6;
         --border: #e4ddcb;
         --border-strong: #d3c8ac;
         --input-bg: #f1ece1;
-        --placeholder: #8b8a7c;
+        --placeholder: #726f60;
         --shadow: 0 8px 24px rgba(38,38,32,0.08);
         --shadow-strong: 0 20px 48px rgba(38,38,32,0.14);
         --success: #5b7a52; --success-bg: #eaf1e6;
@@ -144,6 +144,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     html, body, [class*="css"] {{
         font-family: 'Manrope', sans-serif;
+        font-size: 16px;
     }}
 
     #MainMenu, footer, header {{visibility: hidden;}}
@@ -157,26 +158,62 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .stApp {{
         background: var(--background);
         color: var(--text-secondary);
+        font-size: 0.98rem;
+        line-height: 1.55;
         transition: background-color 0.35s ease, color 0.35s ease;
     }}
 
     /* ---------- Typography ---------- */
+    /* Explicit scale so headings stay consistent regardless of which raw
+       tag Streamlit/markdown happens to emit — h1 is reserved for the
+       page's single biggest moment (auth brand, hero numbers), h2/h3 for
+       section headings, h4+ for card/subsection titles. */
+    h1, .headline {{ font-size: 2rem; line-height: 1.15; }}
+    h2 {{ font-size: 1.5rem; line-height: 1.2; }}
+    h3 {{ font-size: 1.22rem; line-height: 1.3; }}
+    h4 {{ font-size: 1.05rem; line-height: 1.35; }}
+    h5, h6 {{ font-size: 0.95rem; line-height: 1.4; }}
     h1, h2, h3, h4, h5, h6, .headline {{
         font-family: 'Fraunces', serif;
         color: var(--text-primary);
         letter-spacing: -0.01em;
+        font-weight: 700;
     }}
     p, span, div, label, li {{
         color: var(--text-secondary);
     }}
     a {{
-        color: var(--primary);
+        color: var(--primary-hover);
         text-decoration: none;
         transition: color 0.15s ease;
     }}
     a:hover {{
-        color: var(--primary-hover);
+        color: var(--primary);
         text-decoration: underline;
+    }}
+
+    /* ---------- Native Streamlit text that isn't covered by the tag
+       rule above (captions, help tooltips, disabled controls) ---------- */
+    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {{
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+    }}
+    [data-testid="stTooltipIcon"] svg {{
+        color: var(--text-muted) !important;
+    }}
+    [data-testid="stMarkdownContainer"] p {{
+        font-size: 1rem;
+    }}
+    .stTextInput input:disabled,
+    .stTextArea textarea:disabled,
+    .stSelectbox div:disabled {{
+        color: var(--text-muted) !important;
+        -webkit-text-fill-color: var(--text-muted) !important;
+        opacity: 1 !important;
+    }}
+    .stRadio label p, .stCheckbox label p {{
+        color: var(--text-secondary) !important;
+        font-size: 0.95rem;
     }}
 
     /* ================= AUTH / LOGIN PAGE ================= */
@@ -255,9 +292,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-brand-tagline {{
         font-family: 'IBM Plex Mono', monospace;
         color: var(--text-muted);
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        font-size: 0.68rem;
+        font-size: 0.74rem;
         font-weight: 500;
     }}
 
@@ -393,15 +430,32 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         padding-top: 1.2rem;
     }}
 
-    /* ---- Password show/hide toggle, styled to match the input chrome ---- */
+    /* ---- Password show/hide toggle, styled to match the input chrome ----
+       Streamlit's eye icon SVG doesn't reliably inherit the button's CSS
+       `color`, so its fill/stroke are targeted directly — otherwise it can
+       render almost invisible (a light default) against a light input. ---- */
     button[aria-label="Show password"],
     button[aria-label="Hide password"] {{
-        color: var(--text-muted) !important;
-        transition: color 0.15s ease;
+        color: var(--text-secondary) !important;
+        opacity: 1 !important;
+        border-radius: 8px;
+        transition: color 0.15s ease, background 0.15s ease;
+    }}
+    button[aria-label="Show password"] svg,
+    button[aria-label="Hide password"] svg {{
+        fill: var(--text-secondary) !important;
+        stroke: var(--text-secondary) !important;
+        opacity: 1 !important;
     }}
     button[aria-label="Show password"]:hover,
     button[aria-label="Hide password"]:hover {{
-        color: var(--primary) !important;
+        color: var(--primary-hover) !important;
+        background: var(--primary-soft);
+    }}
+    button[aria-label="Show password"]:hover svg,
+    button[aria-label="Hide password"]:hover svg {{
+        fill: var(--primary-hover) !important;
+        stroke: var(--primary-hover) !important;
     }}
 
     /* ================= SIDEBAR ================= */
@@ -507,9 +561,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
     .brand-sub {{
         font-family: 'Manrope', sans-serif;
-        font-size: 0.7rem;
+        font-size: 0.76rem;
         font-weight: 700;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--secondary-accent) !important;
         margin-bottom: 1.9rem;
@@ -574,7 +628,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         + div[data-testid="stButton"] > button {{
         background: var(--primary-soft) !important;
         border-color: var(--primary) !important;
-        color: var(--primary) !important;
+        color: var(--primary-hover) !important;
         font-weight: 800 !important;
     }}
     div[data-testid="stSidebar"] .nav-active-marker
@@ -629,8 +683,8 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .card-tag, .card-tag-tight, .card-tag-accent {{ display: none; }}
 
     .eyebrow {{
-        font-size: 0.68rem;
-        letter-spacing: 0.16em;
+        font-size: 0.74rem;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--secondary-accent) !important;
         font-weight: 700;
@@ -657,7 +711,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: var(--surface);
         border: 1px solid var(--border);
         color: var(--text-secondary) !important;
-        font-size: 0.72rem;
+        font-size: 0.76rem;
         font-weight: 600;
         padding: 0.28rem 0.75rem;
         border-radius: 999px;
@@ -726,7 +780,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         border-radius: 14px;
         padding: 0.65rem 1.5rem;
         font-weight: 700;
-        font-size: 0.92rem;
+        font-size: 0.96rem;
         box-shadow: var(--shadow);
         transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }}
@@ -753,6 +807,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         border-radius: 14px;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
+        font-size: 0.96rem;
         box-shadow: var(--shadow);
         transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }}
@@ -804,7 +859,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .stFileUploader > label {{
         color: var(--text-secondary) !important;
         font-weight: 600;
-        font-size: 0.85rem;
+        font-size: 0.92rem;
     }}
 
     /* Selected chips inside multiselect */
@@ -905,9 +960,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
     .top-header .kicker {{
         color: var(--secondary-accent) !important;
-        letter-spacing: 0.16em;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        font-size: 0.72rem;
+        font-size: 0.76rem;
         font-weight: 700;
     }}
     .top-header h1 {{
