@@ -1078,6 +1078,39 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-secondary) !important;
         margin: 0.6rem 0;
     }}
+
+    /* ---------- Vegetable identify: lightweight inline status badge ----
+       Shown only while the request is actually in flight (removed the
+       instant a result or error arrives), so it never lingers or reads
+       as a stuck/frozen UI. ---- */
+    .identify-status-badge {{
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 0.5rem 0.95rem;
+        border-radius: 999px;
+        background: var(--primary-soft);
+        border: 1px solid var(--border);
+        color: var(--text-secondary) !important;
+        margin: 0.6rem 0;
+    }}
+    .identify-spinner-dot {{
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--primary);
+        flex-shrink: 0;
+        animation: identify-pulse 0.9s ease-in-out infinite;
+    }}
+    @keyframes identify-pulse {{
+        0%, 100% {{ transform: scale(0.7); opacity: 0.55; }}
+        50% {{ transform: scale(1); opacity: 1; }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+        .identify-spinner-dot {{ animation: none; opacity: 1; }}
+    }}
     .status-dot {{
         width: 8px;
         height: 8px;

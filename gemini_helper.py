@@ -1,11 +1,68 @@
 import os
+import io
 import json
 import re
+import hashlib
+import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from google import genai
 from google.genai import errors as genai_errors
 from PIL import Image
 
 GEMINI_MODEL_DEFAULT = "gemini-flash-lite-latest"
+
+# The identify call is small/fast by nature (one short label back), so a
+# generous-but-bounded timeout keeps the UI from ever hanging indefinitely
+# on a slow/stalled network call while still giving normal requests room.
+IDENTIFY_TIMEOUT_SECONDS = 20
+IDENTIFY_MAX_DIMENSION = 768  # downscaling this small cuts upload + inference time significantly
+
+# One shared worker pool for the (rare, short-lived) blocking identify
+# calls, so each request gets a real timeout instead of blocking Streamlit's
+# script thread with no way out if the network stalls.
+_identify_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-identify")
+
+# Simple bounded in-memory cache: same photo -> same answer, instantly,
+# with no repeat API call. Keyed by a content hash of the (downscaled)
+# image, so re-clicking "Identify" on the same photo, or re-uploading it
+# later in the same server process, is free.
+_identify_cache: dict[str, str] = {}
+_identify_cache_lock = threading.Lock()
+_IDENTIFY_CACHE_MAX_ENTRIES = 100
+
+
+def _resize_for_api(image: Image.Image, max_dimension: int = IDENTIFY_MAX_DIMENSION) -> Image.Image:
+    """Downscale large photos before sending them to the API. Identifying
+    a vegetable needs no more than a few hundred pixels of detail, and a
+    smaller payload uploads and gets processed noticeably faster."""
+    width, height = image.size
+    largest_side = max(width, height)
+    if largest_side <= max_dimension:
+        return image
+    scale = max_dimension / float(largest_side)
+    new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
+    return image.resize(new_size, Image.LANCZOS)
+
+
+def _image_cache_key(image: Image.Image) -> str:
+    """Cheap, stable fingerprint of an image's visual content, independent
+    of the original file's size/format/EXIF noise."""
+    thumb = _resize_for_api(image, max_dimension=128).convert("RGB")
+    buf = io.BytesIO()
+    thumb.save(buf, format="JPEG", quality=60)
+    return hashlib.sha256(buf.getvalue()).hexdigest()
+
+
+def _cache_get(key: str):
+    with _identify_cache_lock:
+        return _identify_cache.get(key)
+
+
+def _cache_set(key: str, value: str):
+    with _identify_cache_lock:
+        if key not in _identify_cache and len(_identify_cache) >= _IDENTIFY_CACHE_MAX_ENTRIES:
+            _identify_cache.pop(next(iter(_identify_cache)))
+        _identify_cache[key] = value
 
 
 def _get_model_name() -> str:
@@ -57,8 +114,23 @@ def _friendly_api_error(e: genai_errors.APIError) -> RuntimeError:
     return RuntimeError(f"Gemini API error ({code or 'unknown'}): {getattr(e, 'message', str(e))}")
 
 
-def identify_vegetable_from_image(image: Image.Image) -> str:
-    """Send an uploaded image to Gemini and return a short vegetable name."""
+def identify_vegetable_from_image(image: Image.Image, timeout: float = IDENTIFY_TIMEOUT_SECONDS) -> str:
+    """Send an uploaded image to Gemini and return a short vegetable name.
+
+    Fast-path: if this exact photo (by content, not filename) was already
+    identified in this server process, the cached answer is returned
+    immediately with no network call at all.
+
+    Otherwise the image is downscaled to a small, fast-to-upload size and
+    the API call is run in a worker thread with a hard timeout, so a
+    stalled connection can never hang the app indefinitely — it surfaces
+    as a clear, catchable error instead.
+    """
+    cache_key = _image_cache_key(image)
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     client = _get_client()
     prompt = (
         "Look at this image and identify the single main vegetable shown. "
@@ -66,16 +138,32 @@ def identify_vegetable_from_image(image: Image.Image) -> str:
         "no punctuation, no extra words. If more than one vegetable is visible, "
         "reply with a comma-separated list of their names."
     )
-    try:
-        response = client.models.generate_content(
+    api_image = _resize_for_api(image)
+
+    def _call():
+        return client.models.generate_content(
             model=_get_model_name(),
-            contents=[prompt, image],
+            contents=[prompt, api_image],
+        )
+
+    future = _identify_executor.submit(_call)
+    try:
+        response = future.result(timeout=timeout)
+    except FutureTimeoutError:
+        future.cancel()
+        raise RuntimeError(
+            "Vegetable identification timed out. This is usually a slow network "
+            "connection rather than the app itself — please try again, or use a "
+            "smaller/clearer photo."
         )
     except genai_errors.APIError as e:
         raise _friendly_api_error(e)
+
     text = (response.text or "").strip().lower()
     text = re.sub(r"[^a-z,\s-]", "", text)
-    return text.strip()
+    result = text.strip()
+    _cache_set(cache_key, result)
+    return result
 
 
 def _extract_json(text: str) -> dict:
