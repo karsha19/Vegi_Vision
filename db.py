@@ -7,10 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "veggie_recipes.db")
-
-                                                                           
-                                                                       
-                                                                        
+                                                                                                                
 _init_lock = threading.Lock()
 _initialized = False
 
@@ -20,10 +17,7 @@ def get_conn():
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-                                                                         
-                                                                 
-                                                                     
-                                                                      
+                                                                                                                  
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     try:

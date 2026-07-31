@@ -10,36 +10,19 @@ from google.genai import errors as genai_errors
 from PIL import Image
 
 GEMINI_MODEL_DEFAULT = "gemini-flash-lite-latest"
-
-                                                                        
-                                                                          
-                                                                         
+                                                                  
 IDENTIFY_TIMEOUT_SECONDS = 20
 IDENTIFY_MAX_DIMENSION = 768                                                                     
-
-                                                                           
-                                                                        
-                                                      
+                                             
 GENERATE_RECIPE_TIMEOUT_SECONDS = 45
-
-                                                                           
-                                                                     
-                                                      
-_gemini_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-gemini")
-
-                                                                       
-                                                                      
-                                                                        
                                             
+_gemini_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-gemini")
+                                   
 _identify_cache: dict[str, str] = {}
 _identify_cache_lock = threading.Lock()
 _IDENTIFY_CACHE_MAX_ENTRIES = 100
 
-                                                                         
-                                                                          
-                                                                         
-                                                                         
-                      
+                  
 _client_cache: dict[str, "genai.Client"] = {}
 _client_cache_lock = threading.Lock()
 
