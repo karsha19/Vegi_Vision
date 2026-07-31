@@ -11,35 +11,35 @@ from PIL import Image
 
 GEMINI_MODEL_DEFAULT = "gemini-flash-lite-latest"
 
-# The identify call is small/fast by nature (one short label back), so a
-# generous-but-bounded timeout keeps the UI from ever hanging indefinitely
-# on a slow/stalled network call while still giving normal requests room.
+                                                                        
+                                                                          
+                                                                         
 IDENTIFY_TIMEOUT_SECONDS = 20
-IDENTIFY_MAX_DIMENSION = 768  # downscaling this small cuts upload + inference time significantly
+IDENTIFY_MAX_DIMENSION = 768                                                                     
 
-# Recipe generation returns a larger JSON payload and does more "thinking",
-# so it gets more headroom than identify — but still a hard ceiling so a
-# stalled request can never hang the app indefinitely.
+                                                                           
+                                                                        
+                                                      
 GENERATE_RECIPE_TIMEOUT_SECONDS = 45
 
-# One shared worker pool for the (rare, short-lived) blocking Gemini calls,
-# so each request gets a real timeout instead of blocking Streamlit's
-# script thread with no way out if the network stalls.
+                                                                           
+                                                                     
+                                                      
 _gemini_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-gemini")
 
-# Simple bounded in-memory cache: same photo -> same answer, instantly,
-# with no repeat API call. Keyed by a content hash of the (downscaled)
-# image, so re-clicking "Identify" on the same photo, or re-uploading it
-# later in the same server process, is free.
+                                                                       
+                                                                      
+                                                                        
+                                            
 _identify_cache: dict[str, str] = {}
 _identify_cache_lock = threading.Lock()
 _IDENTIFY_CACHE_MAX_ENTRIES = 100
 
-# The genai.Client wraps its own HTTP connection pool; building a new one
-# per request (per rerun, since Streamlit reruns the whole script on every
-# interaction) throws away connection keep-alive/TLS session reuse for no
-# reason. One client is created per (process, api key) and reused for the
-# life of the process.
+                                                                         
+                                                                          
+                                                                         
+                                                                         
+                      
 _client_cache: dict[str, "genai.Client"] = {}
 _client_cache_lock = threading.Lock()
 

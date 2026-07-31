@@ -1,7 +1,7 @@
 """
 styles.py
 ---------
-Centralized theme system for Verdant.
+Centralized theme system for VegiVision.
 
 Every color in the app is driven by CSS custom properties defined here in
 ONE place. Components never hardcode hex values, `white`, `#fff`, `#000`,
@@ -52,63 +52,64 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     if dark_mode:
         palette = f"""
-        /* ---------------- DARK MODE PALETTE ---------------- */
-        --background: #10130f;
-        --surface: #1c201a;
-        --card: #1c201a;
-        --card-hover: #232920;
-        --primary: #8fbf7a;
-        --primary-hover: #a5d18f;
-        --primary-soft: rgba(143,191,122,0.14);
+        /* ---------------- DARK MODE PALETTE (per design spec) ---------------- */
+        --background: #121212;
+        --surface: #191919;
+        --sidebar: #191919;
+        --card: #1C1C1C;
+        --card-hover: #232323;
+        --primary: #6F9A5F;
+        --primary-hover: #84B880;
+        --primary-soft: rgba(111,154,95,0.16);
         --secondary-accent: #d3a876;
-        --text-primary: #f3f1e8;
-        --text-secondary: #c7c4b5;
-        --text-muted: #8c8a7c;
-        --text-on-primary: #10190d;
-        --border: rgba(245,243,235,0.09);
-        --border-strong: rgba(245,243,235,0.18);
-        --input-bg: #171a14;
-        --placeholder: #8c8a7c;
+        --text-primary: #F5F5F5;
+        --text-secondary: #CFCFCF;
+        --text-muted: #A1A1AA;
+        --text-on-primary: #FFFFFF;
+        --border: #323232;
+        --border-strong: #454545;
+        --input-bg: #1E1E1E;
+        --placeholder: #8A8A8A;
         --shadow: 0 10px 28px rgba(0,0,0,0.45);
         --shadow-strong: 0 24px 56px rgba(0,0,0,0.55);
-        --success: #8fbf7a; --success-bg: rgba(143,191,122,0.14);
-        --error: #e2a296; --error-bg: rgba(226,162,150,0.14);
-        --warning: #e2c896; --warning-bg: rgba(226,200,150,0.14);
-        --info: #96b8d6; --info-bg: rgba(150,184,214,0.14);
-        --focus-ring: rgba(143,191,122,0.4);
+        --success: #66BB6A; --success-bg: rgba(102,187,106,0.14);
+        --error: #EF5350; --error-bg: rgba(239,83,80,0.14);
+        --warning: #FFCA28; --warning-bg: rgba(255,202,40,0.14);
+        --info: #64B5F6; --info-bg: rgba(100,181,246,0.14);
+        --focus-ring: rgba(111,154,95,0.4);
+        --dropdown-hover: #262626;
         """
     else:
         palette = f"""
-        /* ---------------- LIGHT MODE PALETTE ---------------- */
-        --background: #f8f5ef;
-        --surface: #f1ece1;
-        --card: #ffffff;
-        --card-hover: #fbf9f4;
-        --primary: #5b7a52;
-        --primary-hover: #46603f;
-        --primary-soft: rgba(91,122,82,0.10);
-        --secondary-accent: #8a6234;
-        --text-primary: #262620;
-        --text-secondary: #423f36;
-        --text-muted: #6b6a5c;
-        --text-on-primary: #fbfaf6;
-        --border: #e4ddcb;
-        --border-strong: #d3c8ac;
-        --input-bg: #f1ece1;
-        --placeholder: #726f60;
+        /* ---------------- LIGHT MODE PALETTE (per design spec) ---------------- */
+        --background: #F8F6F0;
+        --surface: #F2F4ED;
+        --sidebar: #F2F4ED;
+        --card: #FFFFFF;
+        --card-hover: #F5F3EC;
+        --primary: #5A7D4D;
+        --primary-hover: #496640;
+        --primary-soft: rgba(90,125,77,0.10);
+        --secondary-accent: #b08650;
+        --text-primary: #222222;
+        --text-secondary: #555555;
+        --text-muted: #6E6E6E;
+        --text-on-primary: #FFFFFF;
+        --border: #E7E2D8;
+        --border-strong: #D3C8AC;
+        --input-bg: #FFFFFF;
+        --placeholder: #9B9A90;
         --shadow: 0 8px 24px rgba(38,38,32,0.08);
         --shadow-strong: 0 20px 48px rgba(38,38,32,0.14);
-        --success: #5b7a52; --success-bg: #eaf1e6;
-        --error: #a6472f; --error-bg: #f8e9e4;
-        --warning: #9a7a3f; --warning-bg: #f7f0e0;
-        --info: #4a6f8a; --info-bg: #e8f0f5;
-        --focus-ring: rgba(91,122,82,0.35);
+        --success: #4CAF50; --success-bg: #E9F6EA;
+        --error: #E5484D; --error-bg: #FBEAEA;
+        --warning: #FFB020; --warning-bg: #FFF4E0;
+        --info: #4A90E2; --info-bg: #E8F1FC;
+        --focus-ring: rgba(90,125,77,0.35);
+        --dropdown-hover: #ECE5D5;
         """
 
-    # Collapsed-state overrides: a narrow icon-only rail. Scoped to
-    # tablet/desktop widths (min-width: 769px) so Streamlit's own native
-    # mobile behavior — where the sidebar is already an off-canvas overlay
-    # that slides in/out — is left completely untouched on phones.
+    
     sidebar_collapsed_css = """
     @media (min-width: 769px) {
         section[data-testid="stSidebar"] {
@@ -136,6 +137,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }
     """ if sidebar_collapsed else ""
 
+
     return f"""
     <style>
     :root {{
@@ -144,7 +146,6 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     html, body, [class*="css"] {{
         font-family: 'Manrope', sans-serif;
-        font-size: 16px;
     }}
 
     #MainMenu, footer, header {{visibility: hidden;}}
@@ -158,62 +159,26 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .stApp {{
         background: var(--background);
         color: var(--text-secondary);
-        font-size: 0.98rem;
-        line-height: 1.55;
         transition: background-color 0.35s ease, color 0.35s ease;
     }}
 
     /* ---------- Typography ---------- */
-    /* Explicit scale so headings stay consistent regardless of which raw
-       tag Streamlit/markdown happens to emit — h1 is reserved for the
-       page's single biggest moment (auth brand, hero numbers), h2/h3 for
-       section headings, h4+ for card/subsection titles. */
-    h1, .headline {{ font-size: 2rem; line-height: 1.15; }}
-    h2 {{ font-size: 1.5rem; line-height: 1.2; }}
-    h3 {{ font-size: 1.22rem; line-height: 1.3; }}
-    h4 {{ font-size: 1.05rem; line-height: 1.35; }}
-    h5, h6 {{ font-size: 0.95rem; line-height: 1.4; }}
     h1, h2, h3, h4, h5, h6, .headline {{
         font-family: 'Fraunces', serif;
         color: var(--text-primary);
         letter-spacing: -0.01em;
-        font-weight: 700;
     }}
     p, span, div, label, li {{
         color: var(--text-secondary);
     }}
     a {{
-        color: var(--primary-hover);
+        color: var(--primary);
         text-decoration: none;
         transition: color 0.15s ease;
     }}
     a:hover {{
-        color: var(--primary);
+        color: var(--primary-hover);
         text-decoration: underline;
-    }}
-
-    /* ---------- Native Streamlit text that isn't covered by the tag
-       rule above (captions, help tooltips, disabled controls) ---------- */
-    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {{
-        color: var(--text-muted) !important;
-        font-size: 0.85rem !important;
-    }}
-    [data-testid="stTooltipIcon"] svg {{
-        color: var(--text-muted) !important;
-    }}
-    [data-testid="stMarkdownContainer"] p {{
-        font-size: 1rem;
-    }}
-    .stTextInput input:disabled,
-    .stTextArea textarea:disabled,
-    .stSelectbox div:disabled {{
-        color: var(--text-muted) !important;
-        -webkit-text-fill-color: var(--text-muted) !important;
-        opacity: 1 !important;
-    }}
-    .stRadio label p, .stCheckbox label p {{
-        color: var(--text-secondary) !important;
-        font-size: 0.95rem;
     }}
 
     /* ================= AUTH / LOGIN PAGE ================= */
@@ -292,9 +257,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-brand-tagline {{
         font-family: 'IBM Plex Mono', monospace;
         color: var(--text-muted);
-        letter-spacing: 0.08em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        font-size: 0.74rem;
+        font-size: 0.68rem;
         font-weight: 500;
     }}
 
@@ -337,9 +302,12 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 28px !important;
+        border-radius: 22px !important;
         box-shadow: var(--shadow-strong) !important;
         padding: 0.4rem !important;
+        max-width: 480px;
+        margin-left: auto !important;
+        margin-right: auto !important;
         position: relative;
         overflow: hidden;
         z-index: 1;
@@ -352,8 +320,13 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: linear-gradient(90deg, var(--primary), var(--secondary-accent), var(--primary));
     }}
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) > div {{
-        gap: 0.4rem;
-        padding: 0.6rem 0.4rem;
+        gap: 0.65rem;
+        padding: 2.75rem 2.5rem;
+    }}
+    @media (max-width: 600px) {{
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) > div {{
+            padding: 1.75rem 1.25rem;
+        }}
     }}
     .auth-card-tag {{ display: none; }}
 
@@ -374,7 +347,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         height: 230px;
         pointer-events: none;
         background-repeat: no-repeat;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='230' viewBox='0 0 28 230'%3E%3Cpath d='M14 4 C 6 30, 22 55, 12 82 S 4 130, 16 158 S 8 200, 14 226' fill='none' stroke='%235b7a52' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='46' r='3.2' fill='%23b08650'/%3E%3Ccircle cx='9' cy='104' r='3.2' fill='%23b08650'/%3E%3Ccircle cx='19' cy='172' r='3.2' fill='%23b08650'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='230' viewBox='0 0 28 230'%3E%3Cpath d='M14 4 C 6 30, 22 55, 12 82 S 4 130, 16 158 S 8 200, 14 226' fill='none' stroke='%235A7D4D' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='46' r='3.2' fill='%23b08650'/%3E%3Ccircle cx='9' cy='104' r='3.2' fill='%23b08650'/%3E%3Ccircle cx='19' cy='172' r='3.2' fill='%23b08650'/%3E%3C/svg%3E");
         opacity: 0;
         animation: vine-fade-in 0.6s ease-out 0.3s forwards;
     }}
@@ -430,37 +403,20 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         padding-top: 1.2rem;
     }}
 
-    /* ---- Password show/hide toggle, styled to match the input chrome ----
-       Streamlit's eye icon SVG doesn't reliably inherit the button's CSS
-       `color`, so its fill/stroke are targeted directly — otherwise it can
-       render almost invisible (a light default) against a light input. ---- */
+    /* ---- Password show/hide toggle, styled to match the input chrome ---- */
     button[aria-label="Show password"],
     button[aria-label="Hide password"] {{
-        color: var(--text-secondary) !important;
-        opacity: 1 !important;
-        border-radius: 8px;
-        transition: color 0.15s ease, background 0.15s ease;
-    }}
-    button[aria-label="Show password"] svg,
-    button[aria-label="Hide password"] svg {{
-        fill: var(--text-secondary) !important;
-        stroke: var(--text-secondary) !important;
-        opacity: 1 !important;
+        color: var(--text-muted) !important;
+        transition: color 0.15s ease;
     }}
     button[aria-label="Show password"]:hover,
     button[aria-label="Hide password"]:hover {{
-        color: var(--primary-hover) !important;
-        background: var(--primary-soft);
-    }}
-    button[aria-label="Show password"]:hover svg,
-    button[aria-label="Hide password"]:hover svg {{
-        fill: var(--primary-hover) !important;
-        stroke: var(--primary-hover) !important;
+        color: var(--primary) !important;
     }}
 
     /* ================= SIDEBAR ================= */
     section[data-testid="stSidebar"] {{
-        background: var(--surface);
+        background: var(--sidebar);
         border-right: 1px solid var(--border);
         box-shadow: 4px 0 24px rgba(0,0,0,0.06);
         transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
@@ -561,9 +517,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
     .brand-sub {{
         font-family: 'Manrope', sans-serif;
-        font-size: 0.76rem;
+        font-size: 0.7rem;
         font-weight: 700;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--secondary-accent) !important;
         margin-bottom: 1.9rem;
@@ -628,7 +584,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         + div[data-testid="stButton"] > button {{
         background: var(--primary-soft) !important;
         border-color: var(--primary) !important;
-        color: var(--primary-hover) !important;
+        color: var(--primary) !important;
         font-weight: 800 !important;
     }}
     div[data-testid="stSidebar"] .nav-active-marker
@@ -683,8 +639,8 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .card-tag, .card-tag-tight, .card-tag-accent {{ display: none; }}
 
     .eyebrow {{
-        font-size: 0.74rem;
-        letter-spacing: 0.14em;
+        font-size: 0.68rem;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--secondary-accent) !important;
         font-weight: 700;
@@ -711,7 +667,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: var(--surface);
         border: 1px solid var(--border);
         color: var(--text-secondary) !important;
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         font-weight: 600;
         padding: 0.28rem 0.75rem;
         border-radius: 999px;
@@ -780,7 +736,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         border-radius: 14px;
         padding: 0.65rem 1.5rem;
         font-weight: 700;
-        font-size: 0.96rem;
+        font-size: 0.92rem;
         box-shadow: var(--shadow);
         transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }}
@@ -800,16 +756,45 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         transform: translateY(0);
         filter: brightness(0.97);
     }}
+    .stButton > button:disabled,
+    .stButton > button[disabled] {{
+        background: var(--border) !important;
+        color: var(--text-muted) !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+        transform: none !important;
+        filter: none !important;
+        opacity: 0.75;
+    }}
+    .stButton > button:disabled p {{
+        color: var(--text-muted) !important;
+    }}
+    /* Streamlit's built-in "running" state (shown while a callback with
+       a spinner is executing) — keep the button visibly active rather
+       than looking identical to a plain disabled button. */
+    .stButton > button.st-emotion-cache-running,
+    .stButton[data-testid~="stButtonRunning"] > button {{
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+        color: var(--text-on-primary) !important;
+        opacity: 0.85;
+        cursor: progress;
+    }}
     .stFormSubmitButton > button {{
         background: linear-gradient(135deg, var(--primary), var(--primary-hover));
         color: var(--text-on-primary) !important;
         width: 100%;
+        min-height: 50px;
         border-radius: 14px;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
-        font-size: 0.96rem;
+        font-size: 0.98rem;
+        letter-spacing: 0.01em;
         box-shadow: var(--shadow);
         transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }}
+    .stFormSubmitButton > button p {{
+        color: var(--text-on-primary) !important;
+        font-weight: 700 !important;
     }}
     .stFormSubmitButton > button:hover {{
         filter: brightness(1.05);
@@ -820,6 +805,20 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         transform: translateY(0);
         filter: brightness(0.97);
     }}
+    .stFormSubmitButton > button:focus-visible {{
+        outline: 3px solid var(--focus-ring);
+        outline-offset: 2px;
+    }}
+    .stFormSubmitButton > button:disabled,
+    .stFormSubmitButton > button[disabled] {{
+        background: var(--border) !important;
+        color: var(--text-muted) !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+        transform: none !important;
+        filter: none !important;
+        opacity: 0.75;
+    }}
 
     /* ---------- Text inputs / selects / textareas ---------- */
     div[data-baseweb="input"],
@@ -828,18 +827,22 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     textarea,
     .stTextInput input,
     .stTextArea textarea {{
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         background: var(--input-bg) !important;
         border: 1.5px solid var(--border) !important;
         color: var(--text-primary) !important;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }}
+    div[data-baseweb="input"],
+    div[data-baseweb="select"] > div {{
+        min-height: 48px;
     }}
     div[data-baseweb="input"]:hover,
     div[data-baseweb="select"] > div:hover {{
         border-color: var(--border-strong) !important;
     }}
     .stTextInput input, .stTextArea textarea {{
-        padding: 0.65rem 0.9rem !important;
+        padding: 0.85rem 1rem !important;
     }}
     .stTextInput input::placeholder,
     .stTextArea textarea::placeholder {{
@@ -859,7 +862,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .stFileUploader > label {{
         color: var(--text-secondary) !important;
         font-weight: 600;
-        font-size: 0.92rem;
+        font-size: 0.85rem;
     }}
 
     /* Selected chips inside multiselect */
@@ -868,20 +871,66 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-on-primary) !important;
     }}
 
-    /* Dropdown menu / popover (rendered in a portal) */
+    /* ---------- Dropdown menu / popover (rendered in a portal) ----------
+       Covers every st.selectbox in the app — sidebar, Profile, Sign In,
+       Sign Up, and any future ones — since Streamlit renders the open
+       options list into one shared portal, not inside each widget. */
     ul[data-testid="stSelectboxVirtualDropdown"],
     div[data-baseweb="popover"] ul {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
         box-shadow: var(--shadow-strong) !important;
+        padding: 4px !important;
     }}
+
+    /* Base option text — same comfortable, high-contrast color as the
+       rest of the app's primary text (soft off-white on dark, dark gray
+       on light), so every option reads as clearly as the selected one. */
     ul[data-testid="stSelectboxVirtualDropdown"] li,
-    div[data-baseweb="popover"] ul li {{
-        color: var(--text-secondary) !important;
+    div[data-baseweb="popover"] ul li,
+    ul[data-testid="stSelectboxVirtualDropdown"] li *,
+    div[data-baseweb="popover"] ul li * {{
+        color: var(--text-primary) !important;
+        background: transparent !important;
+        font-weight: 500;
+        border-radius: 8px !important;
+        transition: background 0.15s ease, color 0.15s ease;
     }}
+
+    /* Hover / keyboard-highlighted option */
     ul[data-testid="stSelectboxVirtualDropdown"] li:hover,
-    div[data-baseweb="popover"] ul li:hover {{
+    div[data-baseweb="popover"] ul li:hover,
+    ul[data-testid="stSelectboxVirtualDropdown"] li[data-highlighted="true"],
+    div[data-baseweb="popover"] ul li[data-highlighted="true"] {{
+        background: var(--dropdown-hover) !important;
+    }}
+    ul[data-testid="stSelectboxVirtualDropdown"] li:hover *,
+    div[data-baseweb="popover"] ul li:hover *,
+    ul[data-testid="stSelectboxVirtualDropdown"] li[data-highlighted="true"] *,
+    div[data-baseweb="popover"] ul li[data-highlighted="true"] * {{
+        background: transparent !important;
+        color: var(--text-primary) !important;
+    }}
+
+    /* Selected option — accent color + soft highlighted background,
+       clearly distinct from both the default and hover states. */
+    ul[data-testid="stSelectboxVirtualDropdown"] li[aria-selected="true"],
+    div[data-baseweb="popover"] ul li[aria-selected="true"] {{
         background: var(--primary-soft) !important;
+    }}
+    ul[data-testid="stSelectboxVirtualDropdown"] li[aria-selected="true"] *,
+    div[data-baseweb="popover"] ul li[aria-selected="true"] * {{
+        background: transparent !important;
+        color: var(--primary) !important;
+        font-weight: 700 !important;
+    }}
+
+    /* Keyboard focus ring for accessibility */
+    ul[data-testid="stSelectboxVirtualDropdown"] li:focus-visible,
+    div[data-baseweb="popover"] ul li:focus-visible {{
+        outline: 2px solid var(--focus-ring) !important;
+        outline-offset: -2px;
     }}
 
     /* ---------- File uploader / upload box ---------- */
@@ -960,9 +1009,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
     .top-header .kicker {{
         color: var(--secondary-accent) !important;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         font-weight: 700;
     }}
     .top-header h1 {{
@@ -1133,39 +1182,6 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-secondary) !important;
         margin: 0.6rem 0;
     }}
-
-    /* ---------- Vegetable identify: lightweight inline status badge ----
-       Shown only while the request is actually in flight (removed the
-       instant a result or error arrives), so it never lingers or reads
-       as a stuck/frozen UI. ---- */
-    .identify-status-badge {{
-        display: inline-flex;
-        align-items: center;
-        gap: 0.55rem;
-        font-size: 0.82rem;
-        font-weight: 600;
-        padding: 0.5rem 0.95rem;
-        border-radius: 999px;
-        background: var(--primary-soft);
-        border: 1px solid var(--border);
-        color: var(--text-secondary) !important;
-        margin: 0.6rem 0;
-    }}
-    .identify-spinner-dot {{
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: var(--primary);
-        flex-shrink: 0;
-        animation: identify-pulse 0.9s ease-in-out infinite;
-    }}
-    @keyframes identify-pulse {{
-        0%, 100% {{ transform: scale(0.7); opacity: 0.55; }}
-        50% {{ transform: scale(1); opacity: 1; }}
-    }}
-    @media (prefers-reduced-motion: reduce) {{
-        .identify-spinner-dot {{ animation: none; opacity: 1; }}
-    }}
     .status-dot {{
         width: 8px;
         height: 8px;
@@ -1227,5 +1243,4 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     ::-webkit-scrollbar-thumb {{ background: var(--text-muted); border-radius: 8px; }}
     </style>
     """
-
 
