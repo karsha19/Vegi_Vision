@@ -432,7 +432,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stSidebar"] {{
         background: var(--sidebar);
         border-right: 1px solid var(--border);
-        box-shadow: 4px 0 24px rgba(0,0,0,0.06);
+        box-shadow: var(--shadow);
         transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
                     min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         overflow-x: hidden;
@@ -544,7 +544,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] div[data-testid="stButton"] {{
         margin-bottom: 0.4rem;
     }}
-    div[data-testid="stSidebar"] .stButton > button {{
+    section[data-testid="stSidebar"] .stButton > button {{
         width: 100%;
         display: flex;
         align-items: center;
@@ -568,7 +568,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         transition: background 0.18s ease, border-color 0.18s ease,
                     color 0.18s ease, transform 0.18s ease;
     }}
-    div[data-testid="stSidebar"] .stButton > button p {{
+    section[data-testid="stSidebar"] .stButton > button p {{
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -577,16 +577,16 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
 
     /* Hover state — subtle bg + gentle shift, no layout jump */
-    div[data-testid="stSidebar"] .stButton > button:hover {{
+    section[data-testid="stSidebar"] .stButton > button:hover {{
         background: var(--card-hover);
         border-color: var(--border);
         color: var(--text-primary) !important;
         transform: translateX(3px) scale(1.01);
     }}
-    div[data-testid="stSidebar"] .stButton > button:active {{
+    section[data-testid="stSidebar"] .stButton > button:active {{
         transform: translateX(1px) scale(0.99);
     }}
-    div[data-testid="stSidebar"] .stButton > button:focus-visible {{
+    section[data-testid="stSidebar"] .stButton > button:focus-visible {{
         outline: 2px solid var(--focus-ring);
         outline-offset: 2px;
     }}
@@ -595,14 +595,14 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
        A hidden marker div rendered right before the active nav button
        (see sidebar() in app.py) lets pure CSS pick out that one button
        via an adjacent-sibling selector, with no hardcoded per-page CSS. */
-    div[data-testid="stSidebar"] .nav-active-marker
+    section[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button {{
         background: var(--primary-soft) !important;
         border-color: var(--primary) !important;
         color: var(--primary) !important;
         font-weight: 800 !important;
     }}
-    div[data-testid="stSidebar"] .nav-active-marker
+    section[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button:hover {{
         background: var(--primary-soft) !important;
         transform: translateX(3px);
