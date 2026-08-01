@@ -1010,6 +1010,21 @@ def page_notes():
     if "notes_edit_id" not in st.session_state:
         st.session_state.notes_edit_id = None
 
+    # Any pending reset from a previous submit must be applied BEFORE the
+    # widgets below are instantiated — setting session_state for a widget's
+    # key after it has already rendered this run raises
+    # StreamlitAPIException, so this has to happen up here, not after submit.
+    if st.session_state.pop("_notes_reset_pending", False):
+        st.session_state.notes_title = ""
+        st.session_state.notes_content = ""
+        st.session_state.notes_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+
+    prefill = st.session_state.pop("_notes_prefill_pending", None)
+    if prefill:
+        st.session_state.notes_title = prefill["title"]
+        st.session_state.notes_content = prefill["content"]
+        st.session_state.notes_date = prefill["date"]
+
     with card(accent=True):
         st.markdown(f'<span class="eyebrow">✍️ {t("section_new_note")}</span>', unsafe_allow_html=True)
         with st.form("notes_form"):
@@ -1034,9 +1049,7 @@ def page_notes():
             else:
                 st.error("Notes storage is unavailable right now.")
             st.session_state.notes_edit_id = None
-            st.session_state.notes_title = ""
-            st.session_state.notes_content = ""
-            st.session_state.notes_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+            st.session_state._notes_reset_pending = True
             st.rerun()
 
     st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
@@ -1056,9 +1069,11 @@ def page_notes():
             with col_a:
                 if st.button(t("btn_edit_note"), key=f"edit_note_{note['id']}", use_container_width=True):
                     st.session_state.notes_edit_id = note["id"]
-                    st.session_state.notes_title = note.get("title", "")
-                    st.session_state.notes_content = note.get("content", "")
-                    st.session_state.notes_date = note.get("updated_at") or note.get("created_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                    st.session_state._notes_prefill_pending = {
+                        "title": note.get("title", ""),
+                        "content": note.get("content", ""),
+                        "date": note.get("updated_at") or note.get("created_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+                    }
                     st.rerun()
             with col_b:
                 if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True):
