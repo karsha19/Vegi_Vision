@@ -150,6 +150,10 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     return f"""
     :root {{
         {palette}
+        --radius-pill: 999px;
+        --radius-card: 20px;
+        --radius-input: 12px;
+        --radius-icon: 16px;
     }}
 
     html, body {{
@@ -250,7 +254,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         justify-content: center;
         width: 54px;
         height: 54px;
-        border-radius: 16px;
+        border-radius: var(--radius-card);
         background: var(--primary-soft);
         font-size: 1.6rem;
         margin-bottom: 1rem;
@@ -268,7 +272,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-brand-divider {{
         width: 46px;
         height: 3px;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: linear-gradient(90deg, var(--primary), var(--secondary-accent));
         margin: 0 auto 0.7rem auto;
     }}
@@ -289,7 +293,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         height: 40px !important;
         min-width: 40px !important;
         padding: 0 !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
         box-shadow: none !important;
@@ -306,7 +310,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-lang-select div[data-baseweb="select"] > div {{
         background: transparent !important;
         border: 1px solid var(--border) !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         font-size: 0.8rem;
     }}
     .auth-lang-select div[data-baseweb="select"] > div:hover {{
@@ -320,7 +324,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 22px !important;
+        border-radius: var(--radius-card) !important;
         box-shadow: var(--shadow-strong) !important;
         padding: 0.4rem !important;
         max-width: 480px;
@@ -386,7 +390,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         border-bottom: none;
         background: var(--surface);
         padding: 0.3rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         border: 1px solid var(--border);
     }}
     .stTabs [data-baseweb="tab"] {{
@@ -394,7 +398,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-muted) !important;
         font-weight: 700;
         font-size: 0.86rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         padding: 0.55rem 1.2rem;
         transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }}
@@ -566,7 +570,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         line-height: 1.2;
         padding: 0.78rem 1rem;
         min-height: 46px;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         overflow: hidden;
         box-shadow: none;
         transition: background 0.18s ease, border-color 0.18s ease,
@@ -637,7 +641,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div {{
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         color: var(--text-primary) !important;
         min-height: 42px;
         box-shadow: none !important;
@@ -669,7 +673,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 22px !important;
+        border-radius: var(--radius-card) !important;
         box-shadow: var(--shadow) !important;
         transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.2s ease;
         margin-bottom: 1.1rem;
@@ -720,7 +724,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         font-size: 0.72rem;
         font-weight: 600;
         padding: 0.28rem 0.75rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         margin: 0 0.3rem 0.3rem 0;
     }}
     .pill.green {{ background: var(--primary); color: var(--text-on-primary) !important; border: none; }}
@@ -783,7 +787,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: linear-gradient(135deg, var(--primary), var(--primary-hover));
         color: var(--text-on-primary) !important;
         border: none;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
         font-size: 0.92rem;
@@ -834,7 +838,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-on-primary) !important;
         width: 100%;
         min-height: 50px;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
         font-size: 0.98rem;
@@ -906,7 +910,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     textarea,
     .stTextInput input,
     .stTextArea textarea {{
-        border-radius: 12px !important;
+        border-radius: var(--radius-input) !important;
         background: var(--input-bg) !important;
         border: 1.5px solid var(--border) !important;
         color: var(--text-primary) !important;
@@ -958,7 +962,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-baseweb="popover"] ul {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
+        border-radius: var(--radius-input) !important;
         box-shadow: var(--shadow-strong) !important;
         padding: 4px !important;
     }}
@@ -1016,7 +1020,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stFileUploaderDropzone"] {{
         background: var(--surface) !important;
         border: 1.5px dashed var(--secondary-accent) !important;
-        border-radius: 18px !important;
+        border-radius: var(--radius-card) !important;
     }}
     section[data-testid="stFileUploaderDropzone"] * {{
         color: var(--text-secondary) !important;
@@ -1032,7 +1036,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     /* ---------- Alerts / toasts (st.success, st.error, st.warning, st.info) ---------- */
     div[data-testid="stAlert"] {{
-        border-radius: 14px;
+        border-radius: var(--radius-input);
         border: 1px solid var(--border);
     }}
     div[data-testid="stAlertContentSuccess"], div[data-testid="stAlert"]:has(svg[title="Success"]) {{
@@ -1050,7 +1054,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stDialog"] > div {{
         background: var(--card) !important;
         border: 1px solid var(--border);
-        border-radius: 20px;
+        border-radius: var(--radius-card);
         box-shadow: var(--shadow-strong);
     }}
     div[data-testid="stDialog"] * {{
@@ -1068,7 +1072,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         padding: 3rem 1.5rem;
         background: var(--surface);
         border: 1px dashed var(--border);
-        border-radius: 22px;
+        border-radius: var(--radius-card);
         color: var(--text-muted) !important;
     }}
     .empty-state .icon {{ font-size: 2.4rem; margin-bottom: 0.6rem; }}
@@ -1104,7 +1108,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag-mini) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 18px !important;
+        border-radius: var(--radius-card) !important;
         margin-bottom: 0.9rem;
         transition: transform 0.18s ease, background 0.18s ease;
     }}
@@ -1130,7 +1134,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .avatar-badge {{
         width: 54px;
         height: 54px;
-        border-radius: 16px;
+        border-radius: var(--radius-card);
         background: var(--primary-soft);
         display: flex;
         align-items: center;
@@ -1202,7 +1206,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .danger-zone-box {{
         border: 1px solid var(--error) !important;
         background: var(--error-bg) !important;
-        border-radius: 16px;
+        border-radius: var(--radius-card);
         padding: 1rem 1.1rem;
         margin-top: 0.6rem;
     }}
@@ -1255,7 +1259,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         font-weight: 700;
         letter-spacing: 0.04em;
         padding: 0.35rem 0.85rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: var(--surface);
         border: 1px solid var(--border);
         color: var(--text-secondary) !important;
@@ -1305,7 +1309,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
        so page CSS can't reach inside it — this just keeps its surrounding
        spacing consistent with the rest of the bento layout. */
     iframe[title="streamlit_mic_recorder.mic_recorder"] {{
-        border-radius: 14px;
+        border-radius: var(--radius-input);
     }}
 
     /* ---------- Focus visibility everywhere ---------- */
@@ -1392,7 +1396,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     /* File uploader dropzone: rounded, theme-aware, gentle hover highlight */
     [data-testid="stFileUploaderDropzone"] {{
-        border-radius: 16px !important;
+        border-radius: var(--radius-card) !important;
         border: 1.5px dashed var(--border-strong) !important;
         background: var(--surface) !important;
     }}
@@ -1427,7 +1431,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: transparent !important;
         color: var(--text-secondary) !important;
         border: 1.5px solid var(--border-strong) !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         font-weight: 600 !important;
         box-shadow: none !important;
     }}
@@ -1459,10 +1463,10 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     /* Richer, slightly warmer elevation on the main content cards for a
        more premium sense of depth than a flat single shadow value */
     div[data-testid="stVerticalBlockBorderWrapper"] {{
-        box-shadow: 0 1px 2px rgba(0,0,0,0.04), var(--shadow) !important;
+        box-shadow: var(--shadow) !important;
     }}
     div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
-        box-shadow: 0 2px 4px rgba(0,0,0,0.06), var(--shadow-strong) !important;
+        box-shadow: var(--shadow-strong) !important;
     }}
 
     /* Section headers / eyebrows: tighter rhythm, more magazine-like */
@@ -1485,6 +1489,18 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     /* Consistent generous spacing rhythm between stacked sidebar nav items */
     section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.stButton) {{
         margin-bottom: 0.15rem;
+    }}
+
+    /* Main CTA gets clear top-of-hierarchy prominence — bigger, bolder
+       than routine primary buttons, so it's unmistakably the main action */
+    div[class*="st-key-generate_btn"] .stButton > button {{
+        font-size: 1.05rem !important;
+        padding: 0.85rem 1.5rem !important;
+        letter-spacing: 0.02em;
+        box-shadow: var(--shadow-strong) !important;
+    }}
+    div[class*="st-key-generate_btn"] .stButton > button:hover {{
+        transform: translateY(-2px) !important;
     }}
     </style>
     """
