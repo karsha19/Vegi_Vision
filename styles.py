@@ -2683,7 +2683,6 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     ::-webkit-scrollbar {{ width: 8px; }}
     ::-webkit-scrollbar-thumb {{ background: var(--text-muted); border-radius: 8px; }}
-<<<<<<< HEAD
 
     /* ================================================================
        PREMIUM POLISH LAYER — global refinement pass. Purely additive:
@@ -2862,10 +2861,155 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[class*="st-key-generate_btn"] .stButton > button:hover {{
         transform: translateY(-2px) !important;
     }}
+
+    /* ================= AI CHAT ASSISTANT (floating widget) ================= */
+    /* Floating circular toggle button, fixed bottom-right on every page. */
+    .chat-fab-anchor {{
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+    }}
+    .chat-fab-anchor .stButton > button {{
+        width: 58px;
+        height: 58px;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+        color: var(--text-on-primary) !important;
+        font-size: 1.5rem;
+        box-shadow: var(--shadow-strong) !important;
+        border: none !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    }}
+    .chat-fab-anchor .stButton > button:hover {{
+        transform: scale(1.08) translateY(-2px) !important;
+    }}
+    .chat-fab-anchor .stButton > button:active {{
+        transform: scale(0.96) !important;
+    }}
+
+    /* Chat panel — fixed above the FAB, animates in on open. */
+    .chat-panel-anchor {{
+        position: fixed;
+        bottom: 96px;
+        right: 24px;
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        max-height: 70vh;
+        z-index: 9998;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: var(--shadow-strong);
+        padding: 14px 16px 10px;
+        display: flex;
+        flex-direction: column;
+        animation: chat-panel-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: hidden;
+    }}
+    @keyframes chat-panel-in {{
+        from {{ opacity: 0; transform: translateY(16px) scale(0.97); }}
+        to   {{ opacity: 1; transform: translateY(0) scale(1); }}
+    }}
+    @media (max-width: 480px) {{
+        .chat-panel-anchor {{
+            right: 16px;
+            left: 16px;
+            width: auto;
+            bottom: 88px;
+        }}
+    }}
+
+    .chat-panel-header {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 1.02rem;
+        color: var(--text-primary);
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
+    }}
+    .chat-online-dot {{
+        font-size: 0.72rem;
+        color: var(--success);
+        font-weight: 600;
+    }}
+
+    .chat-messages {{
+        overflow-y: auto;
+        max-height: 42vh;
+        padding: 4px 2px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        scroll-behavior: smooth;
+    }}
+    .chat-empty {{
+        text-align: center;
+        padding: 24px 8px;
+        color: var(--text-muted);
+    }}
+    .chat-empty-title {{
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }}
+    .chat-empty-sub {{
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }}
+    .chat-row {{
+        display: flex;
+        animation: chat-msg-in 0.2s ease;
+    }}
+    @keyframes chat-msg-in {{
+        from {{ opacity: 0; transform: translateY(6px); }}
+        to   {{ opacity: 1; transform: translateY(0); }}
+    }}
+    .chat-bubble-user {{ justify-content: flex-end; }}
+    .chat-bubble-ai {{ justify-content: flex-start; }}
+    .chat-bubble {{
+        max-width: 82%;
+        padding: 9px 13px;
+        border-radius: 14px;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        word-wrap: break-word;
+    }}
+    .chat-bubble-user .chat-bubble {{
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+        color: var(--text-on-primary);
+        border-bottom-right-radius: 4px;
+    }}
+    .chat-bubble-ai .chat-bubble {{
+        background: var(--surface);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 4px;
+    }}
+
+    /* Quick-suggestion chips + input row: keep them visually compact so
+       the panel doesn't grow taller than the message list itself. */
+    .chat-panel-anchor .stButton > button {{
+        font-size: 0.76rem;
+        padding: 0.3rem 0.5rem;
+        border-radius: 999px;
+        min-height: 0;
+    }}
+    .chat-panel-anchor .stTextInput input {{
+        min-height: 38px !important;
+        padding: 0.5rem 0.8rem !important;
+    }}
+    .chat-panel-anchor .stFormSubmitButton > button {{
+        min-height: 38px;
+        border-radius: 12px;
+        padding: 0.4rem 0.6rem;
+    }}
     </style>
     """
-=======
->>>>>>> 85a8fb6 (Added AI Smart Nutrition Assistant feature)
 
     /* ================= AI CHAT ASSISTANT (floating widget) ================= */
     /* Floating circular toggle button, fixed bottom-right on every page. */
