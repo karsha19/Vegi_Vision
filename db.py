@@ -2,24 +2,17 @@ import sqlite3
 import json
 import hashlib
 import os
-import threading
 from contextlib import contextmanager
 from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "veggie_recipes.db")
-                                                                                                                
-_init_lock = threading.Lock()
-_initialized = False
 
 
 @contextmanager
 def get_conn():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-                                                                                                                  
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA synchronous = NORMAL")
     try:
         yield conn
         conn.commit()
@@ -28,70 +21,89 @@ def get_conn():
 
 
 def init_db():
-    global _initialized
-    if _initialized:
-        return
-    with _init_lock:
-        if _initialized:
-            return
-        with get_conn() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    salt TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS recipes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    title TEXT NOT NULL,
-                    cuisine TEXT,
-                    vegetables TEXT,
-                    servings TEXT,
-                    prep_time TEXT,
-                    cook_time TEXT,
-                    difficulty TEXT,
-                    calories TEXT,
-                    ingredients TEXT,
-                    instructions TEXT,
-                    nutrition TEXT,
-                    tips TEXT,
-                    substitutions TEXT,
-                    storage TEXT,
-                    image_data TEXT,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS favorites (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    recipe_id INTEGER NOT NULL,
-                    created_at TEXT NOT NULL,
-                    UNIQUE(user_id, recipe_id),
-                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-                    FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE
-                )
-            """)
-                                                                              
-                                                                        
-                                                                           
-                                                                   
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_user_id ON recipes(user_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_recipes_user_created ON recipes(user_id, created_at DESC)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_recipe_id ON favorites(recipe_id)")
-            _migrate_users_table()
-        _initialized = True
+    with get_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS recipes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                cuisine TEXT,
+                vegetables TEXT,
+                servings TEXT,
+                prep_time TEXT,
+                cook_time TEXT,
+                difficulty TEXT,
+                calories TEXT,
+                ingredients TEXT,
+                instructions TEXT,
+                nutrition TEXT,
+                tips TEXT,
+                substitutions TEXT,
+                storage TEXT,
+                image_data TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS favorites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                recipe_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(user_id, recipe_id),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS nutrition_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                age TEXT,
+                gender TEXT,
+                height TEXT,
+                weight TEXT,
+                activity_level TEXT,
+                dietary_preference TEXT,
+                allergies TEXT,
+                health_goal TEXT,
+                calorie_target TEXT,
+                macros TEXT,
+                hydration_goal TEXT,
+                meal_plan TEXT,
+                recommended_vegetables TEXT,
+                substitutions TEXT,
+                weekly_tips TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS nutrition_favorites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                plan_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(user_id, plan_id),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (plan_id) REFERENCES nutrition_plans (id) ON DELETE CASCADE
+            )
+        """)
+        _migrate_users_table()
 
 
-       
+# auth 
 
 def _hash_password(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100_000).hex()
@@ -127,7 +139,7 @@ def get_user_by_id(user_id: int):
     return dict(row) if row else None
 
 
-         
+# recipes
 
 def save_recipe(user_id: int, recipe: dict) -> int:
     with get_conn() as conn:
@@ -188,18 +200,6 @@ def get_user_recipes(user_id: int, search: str = "", cuisine_filter: str = "All"
     return [_row_to_recipe(r) for r in rows]
 
 
-def get_recent_recipes(user_id: int, limit: int = 5):
-    """Same ordering as get_user_recipes but pushes the LIMIT down into
-    SQL instead of fetching every recipe a user has ever saved just to
-    slice off the first few in Python."""
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM recipes WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-            (user_id, limit),
-        ).fetchall()
-    return [_row_to_recipe(r) for r in rows]
-
-
 def get_recipe(recipe_id: int):
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM recipes WHERE id = ?", (recipe_id,)).fetchone()
@@ -219,7 +219,7 @@ def get_distinct_cuisines(user_id: int):
     return sorted({r["cuisine"] for r in rows})
 
 
-             
+#  favorites 
 
 def toggle_favorite(user_id: int, recipe_id: int) -> bool:
     """Returns True if now favorited, False if removed."""
@@ -268,7 +268,7 @@ def get_user_stats(user_id: int) -> dict:
 
 
 
-                    
+# profile management
 
 def _migrate_users_table():
     with get_conn() as conn:
@@ -338,3 +338,124 @@ def delete_user(user_id: int):
         return True
     except Exception:
         return False
+
+
+# nutrition assistant
+
+def save_nutrition_plan(user_id: int, profile: dict, plan: dict) -> int:
+    """Persist a generated nutrition/meal plan. `profile` holds the raw
+    inputs the user submitted; `plan` holds the AI-generated recommendation
+    (already validated/parsed JSON from gemini_helper.generate_nutrition_plan).
+    """
+    with get_conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO nutrition_plans
+               (user_id, age, gender, height, weight, activity_level,
+                dietary_preference, allergies, health_goal, calorie_target,
+                macros, hydration_goal, meal_plan, recommended_vegetables,
+                substitutions, weekly_tips, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                user_id,
+                str(profile.get("age", "")),
+                profile.get("gender", ""),
+                str(profile.get("height", "")),
+                str(profile.get("weight", "")),
+                profile.get("activity_level", ""),
+                profile.get("dietary_preference", ""),
+                profile.get("allergies", ""),
+                profile.get("health_goal", ""),
+                plan.get("calorie_target", ""),
+                json.dumps(plan.get("macros", {})),
+                plan.get("hydration_goal", ""),
+                json.dumps(plan.get("meal_plan", {})),
+                json.dumps(plan.get("recommended_vegetables", [])),
+                json.dumps(plan.get("substitutions", [])),
+                json.dumps(plan.get("weekly_tips", [])),
+                datetime.utcnow().isoformat(),
+            ),
+        )
+        return cur.lastrowid
+
+
+def _row_to_nutrition_plan(row) -> dict:
+    d = dict(row)
+    for field in ("macros", "meal_plan", "recommended_vegetables", "substitutions", "weekly_tips"):
+        try:
+            d[field] = json.loads(d[field]) if d[field] else ({} if field in ("macros", "meal_plan") else [])
+        except (json.JSONDecodeError, TypeError):
+            d[field] = {} if field in ("macros", "meal_plan") else []
+    return d
+
+
+def get_nutrition_plan(plan_id: int):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM nutrition_plans WHERE id = ?", (plan_id,)).fetchone()
+    return _row_to_nutrition_plan(row) if row else None
+
+
+def get_user_nutrition_plans(user_id: int, limit: int = 20):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM nutrition_plans WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    return [_row_to_nutrition_plan(r) for r in rows]
+
+
+def delete_nutrition_plan(plan_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM nutrition_plans WHERE id = ? AND user_id = ?", (plan_id, user_id))
+
+
+def toggle_nutrition_favorite(user_id: int, plan_id: int) -> bool:
+    """Returns True if now favorited, False if removed."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM nutrition_favorites WHERE user_id = ? AND plan_id = ?", (user_id, plan_id)
+        ).fetchone()
+        if row:
+            conn.execute("DELETE FROM nutrition_favorites WHERE id = ?", (row["id"],))
+            return False
+        conn.execute(
+            "INSERT INTO nutrition_favorites (user_id, plan_id, created_at) VALUES (?, ?, ?)",
+            (user_id, plan_id, datetime.utcnow().isoformat()),
+        )
+        return True
+
+
+def is_nutrition_favorite(user_id: int, plan_id: int) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM nutrition_favorites WHERE user_id = ? AND plan_id = ?", (user_id, plan_id)
+        ).fetchone()
+    return row is not None
+
+
+def get_favorite_nutrition_plans(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT p.* FROM nutrition_plans p
+               JOIN nutrition_favorites f ON p.id = f.plan_id
+               WHERE f.user_id = ?
+               ORDER BY f.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+    return [_row_to_nutrition_plan(r) for r in rows]
+
+
+def match_recipes_for_vegetables(user_id: int, vegetable_names: list, limit: int = 6):
+    """Cross-reference the AI's recommended vegetables against this user's
+    existing saved recipes (from the regular Generate Recipe feature), so
+    the Nutrition Assistant can surface recipes that already exist instead
+    of always generating new ones."""
+    if not vegetable_names:
+        return []
+    with get_conn() as conn:
+        clauses = " OR ".join(["vegetables LIKE ?"] * len(vegetable_names))
+        params = [user_id] + [f"%{v}%" for v in vegetable_names]
+        rows = conn.execute(
+            f"SELECT * FROM recipes WHERE user_id = ? AND ({clauses}) ORDER BY created_at DESC LIMIT ?",
+            params + [limit],
+        ).fetchall()
+    return [_row_to_recipe(r) for r in rows]

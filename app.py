@@ -1,3 +1,10 @@
+"""
+app.py
+------
+Vegetable Recipe Maker — an editorial / bento-grid Streamlit app powered
+by Gemini + SQLite. Run with: streamlit run app.py
+"""
+
 import os
 import base64
 import io
@@ -9,6 +16,7 @@ from dotenv import load_dotenv
 import db
 import gemini_helper as gm
 import voice_assistant as va
+import nutrition_pdf
 from styles import get_theme_css, FONT_IMPORT
 from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 
@@ -43,6 +51,8 @@ def init_session():
         "sidebar_collapsed": False,
         "profile_edit_mode": False,
         "profile_confirm_delete": False,
+        "current_nutrition_plan": None,
+        "current_nutrition_plan_id": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -54,10 +64,7 @@ init_session()
 
 def inject_css():
     st.markdown(FONT_IMPORT, unsafe_allow_html=True)
-    # Defensive: if styles.py on disk is an older copy that doesn't accept
-    # sidebar_collapsed yet, fall back to the 1-argument call instead of
-    # crashing with a TypeError. This can happen if the project's files
-    # get out of sync (e.g. only app.py was updated, not styles.py).
+   
     try:
         css = get_theme_css(st.session_state.dark_mode, st.session_state.sidebar_collapsed)
     except TypeError:
@@ -268,6 +275,7 @@ def sidebar():
 
         nav_items = [
             ("generate", "✨", "nav_generate"),
+            ("nutrition", "🥗", "nav_nutrition"),
             ("history", "📖", "nav_history"),
             ("favorites", "❤️", "nav_favorites"),
             ("profile", "🪴", "nav_profile"),
@@ -582,6 +590,274 @@ def page_generate():
     else:
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
         empty_state("🍲", t("empty_no_recipe_title"), t("empty_no_recipe_sub"))
+
+
+# --------------------------------------------------------- nutrition page -
+
+def _render_nutrition_plan(plan: dict, profile: dict, plan_id, created_at: str):
+    """Render a generated (or previously saved) nutrition plan in the
+    required sections: Nutrition Summary, Daily Meal Plan, Recommended
+    Vegetables, Recommended Recipes, Health Tips — plus favorite/PDF
+    controls and the generation timestamp."""
+    user_id = st.session_state.user["id"]
+
+    st.caption(f"🕓 {t('label_generated_at')}: {created_at}")
+
+    # ---- Nutrition Summary ----
+    with card(accent=True):
+        st.markdown(f'<span class="eyebrow">🔥 {t("section_nutrition_summary")}</span>', unsafe_allow_html=True)
+        macros = plan.get("macros", {}) or {}
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric(t("label_calorie_target"), plan.get("calorie_target", "—"))
+        c2.metric("Protein", macros.get("protein", "—"))
+        c3.metric("Carbs", macros.get("carbs", "—"))
+        c4.metric("Fat", macros.get("fat", "—"))
+        st.markdown(f"💧 **{t('label_hydration_goal')}:** {plan.get('hydration_goal', '—')}")
+
+    # ---- Daily Meal Plan ----
+    with card():
+        st.markdown(f'<span class="eyebrow">🍽️ {t("section_meal_plan")}</span>', unsafe_allow_html=True)
+        meal_plan = plan.get("meal_plan", {}) or {}
+        meal_cols = st.columns(4)
+        for col, (meal_key, label_key) in zip(
+            meal_cols,
+            [("breakfast", "label_breakfast"), ("lunch", "label_lunch"),
+             ("snacks", "label_snacks"), ("dinner", "label_dinner")],
+        ):
+            with col:
+                st.markdown(f"**{t(label_key)}**")
+                items = meal_plan.get(meal_key) or []
+                if not items:
+                    st.caption("—")
+                for it in items:
+                    if isinstance(it, dict):
+                        st.markdown(f"- **{it.get('item', '')}**")
+                        if it.get("reason"):
+                            st.caption(it["reason"])
+                    else:
+                        st.markdown(f"- {it}")
+
+    # ---- Recommended Vegetables ----
+    veggies = plan.get("recommended_vegetables") or []
+    veg_names = [v.get("name", "") for v in veggies if isinstance(v, dict) and v.get("name")]
+    with card():
+        st.markdown(f'<span class="eyebrow">🥕 {t("section_recommended_veg")}</span>', unsafe_allow_html=True)
+        if not veggies:
+            st.caption("—")
+        for v in veggies:
+            if isinstance(v, dict):
+                nutrient = f" · rich in {v.get('nutrient')}" if v.get("nutrient") else ""
+                st.markdown(f"🥬 **{v.get('name', '').title()}**{nutrient}")
+                if v.get("reason"):
+                    st.caption(v["reason"])
+            else:
+                st.markdown(f"🥬 {v}")
+
+    with card():
+        st.markdown(f'<span class="eyebrow">📖 {t("section_recommended_recipes")}</span>', unsafe_allow_html=True)
+        matched = db.match_recipes_for_vegetables(user_id, veg_names) if veg_names else []
+        if matched:
+            for r in matched:
+                mc1, mc2 = st.columns([4, 1])
+                with mc1:
+                    st.markdown(f"**{r['title']}** · {r.get('cuisine', '')} · {r.get('difficulty', '')}")
+                with mc2:
+                    if st.button("View", key=f"nutri_view_recipe_{r['id']}", use_container_width=True):
+                        st.session_state.selected_recipe_id = r["id"]
+                        st.session_state.page = "history"
+                        st.rerun()
+        else:
+            st.caption(t("msg_no_matching_recipes"))
+
+        for veg in veg_names[:5]:
+            if st.button(
+                t("btn_generate_recipe_for", veg=veg.title()),
+                key=f"nutri_gen_recipe_{veg}",
+                use_container_width=True,
+            ):
+                st.session_state.page = "generate"
+                st.session_state.detected_veg = veg
+                st.session_state.veg_image = None
+                st.rerun()
+
+    # ---- Substitutions (bonus, ties back to the objective list) ----
+    subs = plan.get("substitutions") or []
+    if subs:
+        with card():
+            st.markdown(f'<span class="eyebrow">🔄 {t("section_substitutions")}</span>', unsafe_allow_html=True)
+            for s in subs:
+                st.markdown(f"- {s}")
+
+    # ---- Health Tips ----
+    tips = plan.get("weekly_tips") or []
+    with card():
+        st.markdown(f'<span class="eyebrow">💡 {t("section_health_tips")}</span>', unsafe_allow_html=True)
+        if not tips:
+            st.caption("—")
+        for tip in tips:
+            st.markdown(f"- {tip}")
+
+    # ---- Actions: Favorite / Regenerate / Download PDF ----
+    act1, act2, act3 = st.columns([1, 1, 1])
+    with act1:
+        if plan_id:
+            already_fav = db.is_nutrition_favorite(user_id, plan_id)
+            if already_fav:
+                st.button(f"💚 {t('btn_added_favorite_nutrition')}", key="nutri_fav_btn", use_container_width=True, disabled=True)
+            else:
+                if st.button(f"❤️ {t('btn_add_favorite_nutrition')}", key="nutri_fav_btn", use_container_width=True):
+                    db.toggle_nutrition_favorite(user_id, plan_id)
+                    st.success(t("msg_nutrition_saved"))
+                    st.rerun()
+    with act2:
+        if st.button(f"🔁 {t('btn_regenerate_plan')}", key="nutri_regenerate_btn", use_container_width=True):
+            _generate_and_save_nutrition_plan(profile)
+            st.rerun()
+    with act3:
+        try:
+            pdf_bytes = nutrition_pdf.build_meal_plan_pdf(profile, plan, created_at)
+            st.download_button(
+                f"⬇️ {t('btn_download_pdf')}",
+                data=pdf_bytes,
+                file_name="vegivision_meal_plan.pdf",
+                mime="application/pdf",
+                key="nutri_pdf_btn",
+                use_container_width=True,
+            )
+        except Exception as e:
+            st.caption(f"PDF export unavailable: {e}")
+
+
+def _generate_and_save_nutrition_plan(profile: dict):
+    """Shared by the initial submit and the Regenerate button: calls
+    Gemini, auto-saves the result to history (no manual save step, matching
+    how the regular recipe generator behaves), and stores it in session
+    state so it renders immediately without a page refresh."""
+    with st.spinner(t("msg_nutrition_generating")):
+        try:
+            language = LANGUAGES[st.session_state.language]["gemini_name"]
+            plan = gm.generate_nutrition_plan(profile, language)
+            plan_id = db.save_nutrition_plan(st.session_state.user["id"], profile, plan)
+            st.session_state.current_nutrition_plan = plan
+            st.session_state.current_nutrition_plan_id = plan_id
+            st.session_state.current_nutrition_profile = profile
+            st.session_state.current_nutrition_created_at = db.get_nutrition_plan(plan_id)["created_at"]
+            st.success(t("msg_nutrition_ready"))
+        except Exception as e:
+            st.error(t("err_nutrition_failed", error=e))
+
+
+def page_nutrition():
+    st.markdown(
+        f"""
+        <div class="top-header">
+            <div>
+                <div class="kicker">{t('kicker_nutrition')}</div>
+                <h1>{t('title_nutrition')}</h1>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with card():
+        st.markdown(f'<span class="eyebrow">🧬 {t("eyebrow_nutrition_profile")}</span>', unsafe_allow_html=True)
+
+        with st.form("nutrition_profile_form"):
+            r1c1, r1c2 = st.columns(2)
+            with r1c1:
+                age = st.number_input(t("label_age"), min_value=1, max_value=120, value=25, step=1)
+            with r1c2:
+                gender = st.selectbox(
+                    t("label_gender"),
+                    options=["gender_female", "gender_male", "gender_other"],
+                    format_func=lambda k: t(k),
+                )
+
+            r2c1, r2c2 = st.columns(2)
+            with r2c1:
+                height = st.number_input(t("label_height"), min_value=50.0, max_value=250.0, value=170.0, step=0.5)
+            with r2c2:
+                weight = st.number_input(t("label_weight"), min_value=20.0, max_value=300.0, value=65.0, step=0.5)
+
+            activity_level = st.selectbox(
+                t("label_activity"),
+                options=["activity_sedentary", "activity_light", "activity_moderate", "activity_very", "activity_athlete"],
+                format_func=lambda k: t(k),
+            )
+
+            r3c1, r3c2 = st.columns(2)
+            with r3c1:
+                dietary_preference = st.selectbox(
+                    t("label_diet_pref"),
+                    options=["diet_none", "diet_vegetarian", "diet_vegan", "diet_high_protein",
+                             "diet_low_carb", "diet_keto", "diet_gluten_free"],
+                    format_func=lambda k: t(k),
+                )
+            with r3c2:
+                health_goal = st.selectbox(
+                    t("label_health_goal"),
+                    options=["goal_weight_loss", "goal_weight_gain", "goal_muscle_building", "goal_healthy_lifestyle"],
+                    format_func=lambda k: t(k),
+                )
+
+            allergies = st.text_input(t("label_allergies"), placeholder=t("placeholder_allergies"))
+
+            submitted = st.form_submit_button(f"✨ {t('btn_generate_plan')}", use_container_width=True)
+
+        if submitted:
+            if not gm.is_configured():
+                st.error(t("err_gemini_not_configured2"))
+            else:
+                profile = {
+                    "age": age,
+                    "gender": t(gender),
+                    "height": height,
+                    "weight": weight,
+                    "activity_level": t(activity_level),
+                    "dietary_preference": t(dietary_preference),
+                    "allergies": allergies,
+                    "health_goal": t(health_goal),
+                }
+                _generate_and_save_nutrition_plan(profile)
+
+    st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+
+    if st.session_state.current_nutrition_plan:
+        _render_nutrition_plan(
+            st.session_state.current_nutrition_plan,
+            st.session_state.get("current_nutrition_profile", {}),
+            st.session_state.current_nutrition_plan_id,
+            st.session_state.get("current_nutrition_created_at", ""),
+        )
+    else:
+        empty_state("🥗", t("empty_no_nutrition_title"), t("empty_no_nutrition_sub"))
+
+    # ---- Previous Plans (auto-saved history for this feature) ----
+    past_plans = db.get_user_nutrition_plans(st.session_state.user["id"], limit=10)
+    if past_plans:
+        st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+        st.markdown(f'<span class="eyebrow">🕓 {t("section_past_plans")}</span>', unsafe_allow_html=True)
+        for p in past_plans:
+            pc1, pc2, pc3 = st.columns([3, 1, 1])
+            with pc1:
+                st.markdown(f"**{p.get('calorie_target', '—')}** · {p.get('health_goal', '')} · {p['created_at']}")
+            with pc2:
+                if st.button("View", key=f"nutri_hist_view_{p['id']}", use_container_width=True):
+                    st.session_state.current_nutrition_plan = p
+                    st.session_state.current_nutrition_plan_id = p["id"]
+                    st.session_state.current_nutrition_profile = {
+                        "age": p.get("age", ""), "gender": p.get("gender", ""),
+                        "height": p.get("height", ""), "weight": p.get("weight", ""),
+                        "activity_level": p.get("activity_level", ""),
+                        "dietary_preference": p.get("dietary_preference", ""),
+                        "allergies": p.get("allergies", ""), "health_goal": p.get("health_goal", ""),
+                    }
+                    st.session_state.current_nutrition_created_at = p["created_at"]
+                    st.rerun()
+            with pc3:
+                is_fav = db.is_nutrition_favorite(st.session_state.user["id"], p["id"])
+                st.markdown("💚" if is_fav else "🤍")
 
 
 # ----------------------------------------------------------- history page -
@@ -981,6 +1257,8 @@ def main():
     page = st.session_state.page
     if page == "generate":
         page_generate()
+    elif page == "nutrition":
+        page_nutrition()
     elif page == "history":
         page_history()
     elif page == "favorites":

@@ -1,64 +1,11 @@
 import os
-import io
 import json
 import re
-import hashlib
-import threading
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from google import genai
 from google.genai import errors as genai_errors
 from PIL import Image
 
 GEMINI_MODEL_DEFAULT = "gemini-flash-lite-latest"
-                                                                  
-IDENTIFY_TIMEOUT_SECONDS = 20
-IDENTIFY_MAX_DIMENSION = 768                                                                     
-                                             
-GENERATE_RECIPE_TIMEOUT_SECONDS = 45
-                                            
-_gemini_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="veg-gemini")
-                                   
-_identify_cache: dict[str, str] = {}
-_identify_cache_lock = threading.Lock()
-_IDENTIFY_CACHE_MAX_ENTRIES = 100
-
-                  
-_client_cache: dict[str, "genai.Client"] = {}
-_client_cache_lock = threading.Lock()
-
-
-def _resize_for_api(image: Image.Image, max_dimension: int = IDENTIFY_MAX_DIMENSION) -> Image.Image:
-    """Downscale large photos before sending them to the API. Identifying
-    a vegetable needs no more than a few hundred pixels of detail, and a
-    smaller payload uploads and gets processed noticeably faster."""
-    width, height = image.size
-    largest_side = max(width, height)
-    if largest_side <= max_dimension:
-        return image
-    scale = max_dimension / float(largest_side)
-    new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
-    return image.resize(new_size, Image.LANCZOS)
-
-
-def _image_cache_key(image: Image.Image) -> str:
-    """Cheap, stable fingerprint of an image's visual content, independent
-    of the original file's size/format/EXIF noise."""
-    thumb = _resize_for_api(image, max_dimension=128).convert("RGB")
-    buf = io.BytesIO()
-    thumb.save(buf, format="JPEG", quality=60)
-    return hashlib.sha256(buf.getvalue()).hexdigest()
-
-
-def _cache_get(key: str):
-    with _identify_cache_lock:
-        return _identify_cache.get(key)
-
-
-def _cache_set(key: str, value: str):
-    with _identify_cache_lock:
-        if key not in _identify_cache and len(_identify_cache) >= _IDENTIFY_CACHE_MAX_ENTRIES:
-            _identify_cache.pop(next(iter(_identify_cache)))
-        _identify_cache[key] = value
 
 
 def _get_model_name() -> str:
@@ -79,15 +26,7 @@ def _get_client() -> genai.Client:
         raise RuntimeError(
             "GEMINI_API_KEY is not set. Add it to your environment or a .env file before generating recipes."
         )
-    cached = _client_cache.get(api_key)
-    if cached is not None:
-        return cached
-    with _client_cache_lock:
-        cached = _client_cache.get(api_key)
-        if cached is None:
-            cached = genai.Client(api_key=api_key)
-            _client_cache[api_key] = cached
-        return cached
+    return genai.Client(api_key=api_key)
 
 
 def _friendly_api_error(e: genai_errors.APIError) -> RuntimeError:
@@ -118,23 +57,8 @@ def _friendly_api_error(e: genai_errors.APIError) -> RuntimeError:
     return RuntimeError(f"Gemini API error ({code or 'unknown'}): {getattr(e, 'message', str(e))}")
 
 
-def identify_vegetable_from_image(image: Image.Image, timeout: float = IDENTIFY_TIMEOUT_SECONDS) -> str:
-    """Send an uploaded image to Gemini and return a short vegetable name.
-
-    Fast-path: if this exact photo (by content, not filename) was already
-    identified in this server process, the cached answer is returned
-    immediately with no network call at all.
-
-    Otherwise the image is downscaled to a small, fast-to-upload size and
-    the API call is run in a worker thread with a hard timeout, so a
-    stalled connection can never hang the app indefinitely — it surfaces
-    as a clear, catchable error instead.
-    """
-    cache_key = _image_cache_key(image)
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        return cached
-
+def identify_vegetable_from_image(image: Image.Image) -> str:
+    """Send an uploaded image to Gemini and return a short vegetable name."""
     client = _get_client()
     prompt = (
         "Look at this image and identify the single main vegetable shown. "
@@ -142,32 +66,16 @@ def identify_vegetable_from_image(image: Image.Image, timeout: float = IDENTIFY_
         "no punctuation, no extra words. If more than one vegetable is visible, "
         "reply with a comma-separated list of their names."
     )
-    api_image = _resize_for_api(image)
-
-    def _call():
-        return client.models.generate_content(
-            model=_get_model_name(),
-            contents=[prompt, api_image],
-        )
-
-    future = _gemini_executor.submit(_call)
     try:
-        response = future.result(timeout=timeout)
-    except FutureTimeoutError:
-        future.cancel()
-        raise RuntimeError(
-            "Vegetable identification timed out. This is usually a slow network "
-            "connection rather than the app itself — please try again, or use a "
-            "smaller/clearer photo."
+        response = client.models.generate_content(
+            model=_get_model_name(),
+            contents=[prompt, image],
         )
     except genai_errors.APIError as e:
         raise _friendly_api_error(e)
-
     text = (response.text or "").strip().lower()
     text = re.sub(r"[^a-z,\s-]", "", text)
-    result = text.strip()
-    _cache_set(cache_key, result)
-    return result
+    return text.strip()
 
 
 def _extract_json(text: str) -> dict:
@@ -222,13 +130,8 @@ Make the recipe realistic, well-balanced, and genuinely cookable at home.
 """
 
 
-def generate_recipe(
-    vegetables: list,
-    cuisine: str = "Any",
-    language: str = "English",
-    extra_context: str = None,
-    timeout: float = GENERATE_RECIPE_TIMEOUT_SECONDS,
-) -> dict:
+def generate_recipe(vegetables: list, cuisine: str = "Any", language: str = "English", extra_context: str = None) -> dict:
+  
     client = _get_client()
     extra_block = ""
     if extra_context and extra_context.strip():
@@ -243,28 +146,97 @@ def generate_recipe(
         language=language,
         extra_context_block=extra_block,
     )
-
-    def _call():
-        return client.models.generate_content(
+    try:
+        response = client.models.generate_content(
             model=_get_model_name(),
             contents=prompt,
         )
-
-    future = _gemini_executor.submit(_call)
-    try:
-        response = future.result(timeout=timeout)
-    except FutureTimeoutError:
-        future.cancel()
-        raise RuntimeError(
-            "Recipe generation timed out. This is usually a slow network connection "
-            "or a busy model — please try again in a moment."
-        )
     except genai_errors.APIError as e:
         raise _friendly_api_error(e)
-
     text = response.text or "{}"
     try:
         recipe = _extract_json(text)
     except (json.JSONDecodeError, AttributeError) as e:
         raise RuntimeError(f"Could not parse recipe from Gemini response: {e}")
     return recipe
+
+
+NUTRITION_SCHEMA_PROMPT = """
+You are a certified nutritionist and dietitian. Build a personalized, safe,
+realistic daily nutrition and meal plan for the following person:
+
+- Age: {age}
+- Gender: {gender}
+- Height: {height} cm
+- Weight: {weight} kg
+- Activity level: {activity_level}
+- Dietary preference: {dietary_preference}
+- Allergies / foods to avoid: {allergies}
+- Health goal: {health_goal}
+
+Favor vegetable-forward meals where sensible, since this app is a vegetable
+recipe journal, but keep the plan nutritionally balanced and realistic for
+the stated goal — do not force vegetables where they don't fit.
+
+Write ALL text values in the JSON in {language}. Use natural, fluent,
+native-level {language} phrasing. Keep the JSON keys themselves exactly as
+shown below (do not translate the keys, only the values).
+
+Respond with ONLY valid JSON (no markdown fences, no commentary) matching
+exactly this schema:
+
+{{
+  "calorie_target": "string e.g. 2100 kcal/day",
+  "macros": {{
+    "protein": "string e.g. 110g",
+    "carbs": "string e.g. 230g",
+    "fat": "string e.g. 65g"
+  }},
+  "hydration_goal": "string e.g. 2.5 liters/day",
+  "meal_plan": {{
+    "breakfast": [{{"item": "string - dish/food name", "reason": "string - why this fits their profile"}}],
+    "lunch": [{{"item": "string", "reason": "string"}}],
+    "snacks": [{{"item": "string", "reason": "string"}}],
+    "dinner": [{{"item": "string", "reason": "string"}}]
+  }},
+  "recommended_vegetables": [
+    {{"name": "string - single vegetable name, lowercase", "nutrient": "string e.g. iron, vitamin C, fiber", "reason": "string - why it benefits this person"}}
+  ],
+  "substitutions": ["list of healthier ingredient-substitution suggestion strings"],
+  "weekly_tips": ["list of short, actionable weekly healthy-eating tip strings, at least 5"]
+}}
+
+Each meal_plan section should have 1-3 items. recommended_vegetables should
+have 4-8 entries. Be specific and practical, not generic. If allergies are
+listed, NEVER recommend anything containing them.
+"""
+
+
+def generate_nutrition_plan(profile: dict, language: str = "English") -> dict:
+    """Analyze a user's profile with Gemini and return a structured
+    nutrition + meal plan dict matching NUTRITION_SCHEMA_PROMPT's schema."""
+    client = _get_client()
+    prompt = NUTRITION_SCHEMA_PROMPT.format(
+        age=profile.get("age", "unspecified"),
+        gender=profile.get("gender", "unspecified"),
+        height=profile.get("height", "unspecified"),
+        weight=profile.get("weight", "unspecified"),
+        activity_level=profile.get("activity_level", "unspecified"),
+        dietary_preference=profile.get("dietary_preference", "no specific preference"),
+        allergies=profile.get("allergies") or "none reported",
+        health_goal=profile.get("health_goal", "healthy lifestyle"),
+        language=language,
+    )
+    try:
+        response = client.models.generate_content(
+            model=_get_model_name(),
+            contents=prompt,
+        )
+    except genai_errors.APIError as e:
+        raise _friendly_api_error(e)
+    text = response.text or "{}"
+    try:
+        plan = _extract_json(text)
+    except (json.JSONDecodeError, AttributeError) as e:
+        raise RuntimeError(f"Could not parse nutrition plan from Gemini response: {e}")
+    return plan
