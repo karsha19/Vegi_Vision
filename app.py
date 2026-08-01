@@ -19,6 +19,7 @@ import db as db_module
 import gemini_helper as gm
 import voice_assistant as va
 import nutrition_pdf
+import ai_chat
 from styles import get_theme_css, FONT_IMPORT, build_hidden_style_html
 from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
 
@@ -62,6 +63,9 @@ def init_session():
         "profile_confirm_delete": False,
         "current_nutrition_plan": None,
         "current_nutrition_plan_id": None,
+        "chat_open": False,
+        "chat_messages": None,  # lazily loaded from DB the first time the panel opens
+        "chat_pending_prompt": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -1010,21 +1014,6 @@ def page_notes():
     if "notes_edit_id" not in st.session_state:
         st.session_state.notes_edit_id = None
 
-    # Any pending reset from a previous submit must be applied BEFORE the
-    # widgets below are instantiated — setting session_state for a widget's
-    # key after it has already rendered this run raises
-    # StreamlitAPIException, so this has to happen up here, not after submit.
-    if st.session_state.pop("_notes_reset_pending", False):
-        st.session_state.notes_title = ""
-        st.session_state.notes_content = ""
-        st.session_state.notes_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-
-    prefill = st.session_state.pop("_notes_prefill_pending", None)
-    if prefill:
-        st.session_state.notes_title = prefill["title"]
-        st.session_state.notes_content = prefill["content"]
-        st.session_state.notes_date = prefill["date"]
-
     with card(accent=True):
         st.markdown(f'<span class="eyebrow">✍️ {t("section_new_note")}</span>', unsafe_allow_html=True)
         with st.form("notes_form"):
@@ -1049,7 +1038,9 @@ def page_notes():
             else:
                 st.error("Notes storage is unavailable right now.")
             st.session_state.notes_edit_id = None
-            st.session_state._notes_reset_pending = True
+            st.session_state.notes_title = ""
+            st.session_state.notes_content = ""
+            st.session_state.notes_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
             st.rerun()
 
     st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
@@ -1067,16 +1058,14 @@ def page_notes():
             st.markdown(f'<div style="white-space:pre-wrap; line-height:1.7; color:var(--text-secondary);">{note.get("content", "").replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
             col_a, col_b = st.columns([1, 1])
             with col_a:
-                if st.button(t("btn_edit_note"), key=f"edit_note_{note['id']}", use_container_width=True, type="secondary"):
+                if st.button(t("btn_edit_note"), key=f"edit_note_{note['id']}", use_container_width=True):
                     st.session_state.notes_edit_id = note["id"]
-                    st.session_state._notes_prefill_pending = {
-                        "title": note.get("title", ""),
-                        "content": note.get("content", ""),
-                        "date": note.get("updated_at") or note.get("created_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
-                    }
+                    st.session_state.notes_title = note.get("title", "")
+                    st.session_state.notes_content = note.get("content", "")
+                    st.session_state.notes_date = note.get("updated_at") or note.get("created_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M")
                     st.rerun()
             with col_b:
-                if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True, type="secondary"):
+                if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True):
                     if hasattr(_db_impl, "delete_note"):
                         try:
                             _db_impl.delete_note(note["id"], user_id)
@@ -1378,6 +1367,180 @@ def page_profile():
 
 # ------------------------------------------------------------------ main --
 
+def _chat_vegetable_context() -> str:
+    """The vegetable VegiVision most recently detected/selected for this
+    user, used so vague chat questions ('what can I cook?') don't require
+    re-asking which vegetable they mean."""
+    return st.session_state.get("detected_veg") or ""
+
+
+def _send_chat_message(user_id: int, text: str):
+    text = (text or "").strip()
+    if not text:
+        return
+    history = st.session_state.chat_messages or []
+    language = LANGUAGES[st.session_state.language]["gemini_name"]
+    veg_context = _chat_vegetable_context()
+
+    history.append({"role": "user", "content": text})
+    uid_row = db.save_chat_message(user_id, "user", text)
+    history[-1]["id"] = uid_row
+
+    with st.spinner(t("chat_thinking")):
+        try:
+            reply = ai_chat.chat_with_assistant(
+                [{"role": m["role"], "content": m["content"]} for m in history[:-1]],
+                text, language=language, vegetable_context=veg_context,
+            )
+        except Exception as e:
+            reply = f"⚠️ {t('chat_err', error=e)}"
+
+    aid_row = db.save_chat_message(user_id, "assistant", reply)
+    history.append({"role": "assistant", "content": reply, "id": aid_row})
+    st.session_state.chat_messages = history
+
+
+def _regenerate_last_response(user_id: int):
+    messages = st.session_state.chat_messages or []
+    if messages and messages[-1]["role"] == "assistant":
+        messages = messages[:-1]
+    if not messages or messages[-1]["role"] != "user":
+        return
+    last_user_msg = messages[-1]["content"]
+    history_before = messages[:-1]
+    language = LANGUAGES[st.session_state.language]["gemini_name"]
+    veg_context = _chat_vegetable_context()
+
+    with st.spinner(t("chat_thinking")):
+        try:
+            reply = ai_chat.chat_with_assistant(
+                [{"role": m["role"], "content": m["content"]} for m in history_before],
+                last_user_msg, language=language, vegetable_context=veg_context,
+            )
+        except Exception as e:
+            reply = f"⚠️ {t('chat_err', error=e)}"
+
+    aid_row = db.save_chat_message(user_id, "assistant", reply)
+    messages.append({"role": "assistant", "content": reply, "id": aid_row})
+    st.session_state.chat_messages = messages
+
+
+def render_ai_chat():
+    """Floating chat button + panel, rendered on every authenticated page.
+    Lazily loads history from the DB only the first time it's opened."""
+    user_id = st.session_state.user["id"]
+
+    # Floating toggle button — fixed bottom-right on every page. Wrapping
+    # the button in a real opening/closing div (rather than a preceding
+    # empty marker) makes it a genuine DOM descendant of .chat-fab-anchor,
+    # the same reliable technique already used for .auth-lang-select
+    # elsewhere in this app.
+    st.markdown('<div class="chat-fab-anchor">', unsafe_allow_html=True)
+    fab_label = "✕" if st.session_state.chat_open else "🥦"
+    if st.button(fab_label, key="chat_fab_btn", help=t("chat_title")):
+        st.session_state.chat_open = not st.session_state.chat_open
+        if st.session_state.chat_open and st.session_state.chat_messages is None:
+            st.session_state.chat_messages = [
+                {"role": m["role"], "content": m["content"], "id": m["id"]} for m in db.get_chat_history(user_id)
+            ]
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if not st.session_state.chat_open:
+        return
+
+    st.markdown('<div class="chat-panel-anchor">', unsafe_allow_html=True)
+    with st.container():
+        st.markdown(
+            f"""
+            <div class="chat-panel-header">
+                <div>🥦 <b>{t('chat_title')}</b></div>
+                <div class="chat-online-dot">● {t('chat_online')}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        veg_context = _chat_vegetable_context()
+        if veg_context:
+            st.caption(f"🍅 {t('chat_context_note', veg=veg_context.title())}")
+
+        messages = st.session_state.chat_messages or []
+
+        chat_body = ['<div class="chat-messages">']
+        if not messages:
+            chat_body.append(
+                f'<div class="chat-empty"><div class="chat-empty-title">{t("chat_empty_title")}</div>'
+                f'<div class="chat-empty-sub">{t("chat_empty_sub")}</div></div>'
+            )
+        for m in messages:
+            bubble_class = "chat-bubble-user" if m["role"] == "user" else "chat-bubble-ai"
+            safe_text = m["content"].replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+            chat_body.append(f'<div class="chat-row {bubble_class}"><div class="chat-bubble">{safe_text}</div></div>')
+        chat_body.append('</div>')
+        st.markdown("\n".join(chat_body), unsafe_allow_html=True)
+
+        last_ai = next((m for m in reversed(messages) if m["role"] == "assistant"), None)
+        if last_ai and last_ai.get("id"):
+            with st.expander(f"📋 {t('chat_copy')}"):
+                # st.code renders with Streamlit's own built-in copy-icon
+                # button — the one reliable, native way to copy text to the
+                # clipboard from a Streamlit widget without injecting
+                # custom JS into the page.
+                st.code(last_ai["content"], language=None)
+            fb2, fb3 = st.columns(2)
+            with fb2:
+                if st.button("👍", key="chat_like_btn", use_container_width=True):
+                    db.set_chat_message_feedback(last_ai["id"], user_id, "like")
+                    st.toast("👍")
+            with fb3:
+                if st.button("👎", key="chat_dislike_btn", use_container_width=True):
+                    db.set_chat_message_feedback(last_ai["id"], user_id, "dislike")
+                    st.toast("👎")
+
+        # Quick suggestion chips
+        quick_actions = [
+            ("chat_quick_recipes", "chat_quick_recipes_prompt"),
+            ("chat_quick_healthy", "chat_quick_healthy_prompt"),
+            ("chat_quick_nutrition", "chat_quick_nutrition_prompt"),
+            ("chat_quick_storage", "chat_quick_storage_prompt"),
+            ("chat_quick_seasonal", "chat_quick_seasonal_prompt"),
+            ("chat_quick_cooking", "chat_quick_cooking_prompt"),
+        ]
+        chip_cols = st.columns(3)
+        for i, (label_key, prompt_key) in enumerate(quick_actions):
+            with chip_cols[i % 3]:
+                if st.button(t(label_key), key=f"chat_chip_{label_key}", use_container_width=True):
+                    _send_chat_message(user_id, t(prompt_key))
+                    st.rerun()
+
+        with st.form("chat_input_form", clear_on_submit=True):
+            fcol1, fcol2 = st.columns([5, 1])
+            with fcol1:
+                user_text = st.text_input(
+                    t("chat_placeholder"), key="chat_text_input",
+                    label_visibility="collapsed", placeholder=t("chat_placeholder"),
+                )
+            with fcol2:
+                sent = st.form_submit_button(f"➤ {t('chat_send')}", use_container_width=True)
+        if sent and user_text.strip():
+            _send_chat_message(user_id, user_text)
+            st.rerun()
+
+        act1, act2 = st.columns(2)
+        with act1:
+            has_user_msg = any(m["role"] == "user" for m in messages)
+            if st.button(f"🔁 {t('chat_regenerate')}", key="chat_regen_btn", use_container_width=True, disabled=not has_user_msg):
+                _regenerate_last_response(user_id)
+                st.rerun()
+        with act2:
+            if st.button(f"🗑 {t('chat_clear')}", key="chat_clear_btn", use_container_width=True, disabled=not messages):
+                db.clear_chat_history(user_id)
+                st.session_state.chat_messages = []
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 def main():
     if st.session_state.user is None:
         auth_screen()
@@ -1398,6 +1561,8 @@ def main():
         page_notes()
     elif page == "profile":
         page_profile()
+
+    render_ai_chat()
 
 
 if __name__ == "__main__":
