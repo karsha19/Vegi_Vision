@@ -138,7 +138,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         }
         section[data-testid="stSidebar"] .stButton > button:hover {
             transform: none;
-            background: var(--card-hover);
+            background: var(--primary-hover);
         }
         section[data-testid="stSidebar"] div[data-baseweb="select"] {
             font-size: 0.75rem;
@@ -385,43 +385,45 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     /* ---- Segmented pill tabs (Sign In / Create Account, and reused
        app-wide for a consistent tab language on e.g. the Generate page) ---- */
-    .stTabs [data-baseweb="tab-list"] {{
+    .stTabs [role="tablist"] {{
         gap: 0.25rem;
         border-bottom: none;
         background: var(--surface);
         padding: 0.3rem;
-        border-radius: var(--radius-pill);
+        border-radius: var(--radius-pill) !important;
         border: 1px solid var(--border);
+        overflow: hidden;
     }}
-    .stTabs [data-baseweb="tab"] {{
+    .stTabs [data-testid="stTab"] {{
         background: transparent;
         color: var(--text-muted) !important;
         font-weight: 700;
         font-size: 0.86rem;
-        border-radius: var(--radius-pill);
+        border-radius: var(--radius-pill) !important;
         padding: 0.55rem 1.2rem;
+        overflow: hidden;
         transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }}
-    .stTabs [data-baseweb="tab"] p {{
+    .stTabs [data-testid="stTab"] * {{
+        border-radius: inherit;
+    }}
+    .stTabs [data-testid="stTab"] p {{
         color: inherit !important;
     }}
-    .stTabs [data-baseweb="tab"]:hover {{
+    .stTabs [data-testid="stTab"]:hover {{
         color: var(--text-primary) !important;
         background: var(--card-hover);
     }}
-    .stTabs [aria-selected="true"] {{
+    .stTabs [data-testid="stTab"][aria-selected="true"] {{
         color: var(--text-on-primary) !important;
         background: var(--primary) !important;
+        border-radius: var(--radius-pill) !important;
         box-shadow: var(--shadow);
     }}
-    .stTabs [aria-selected="true"] p {{
+    .stTabs [data-testid="stTab"][aria-selected="true"] p {{
         color: var(--text-on-primary) !important;
     }}
-    .stTabs [data-baseweb="tab-highlight"],
-    .stTabs [data-baseweb="tab-border"] {{
-        display: none !important;
-    }}
-    .stTabs [data-testid="stTabsPanel"] {{
+    .stTabs [data-testid="stTabPanel"] {{
         padding-top: 1.2rem;
     }}
 
@@ -561,9 +563,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        background: transparent;
+        background: var(--primary);
         border: 1px solid transparent;
-        color: var(--text-secondary) !important;
+        color: var(--text-on-primary) !important;
         font-weight: 600;
         font-size: 0.95rem;
         letter-spacing: 0.01em;
@@ -572,9 +574,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         min-height: 46px;
         border-radius: var(--radius-pill) !important;
         overflow: hidden;
-        box-shadow: none;
+        box-shadow: var(--shadow);
         transition: background 0.18s ease, border-color 0.18s ease,
-                    color 0.18s ease, transform 0.18s ease;
+                    color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
     }}
     section[data-testid="stSidebar"] .stButton > button p {{
         white-space: nowrap;
@@ -584,12 +586,13 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         margin: 0;
     }}
 
-    /* Hover state — subtle bg + gentle shift, no layout jump */
+    /* Hover state — deeper green + gentle shift, no layout jump */
     section[data-testid="stSidebar"] .stButton > button:hover {{
-        background: var(--card-hover);
-        border-color: var(--border);
-        color: var(--text-primary) !important;
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+        color: var(--text-on-primary) !important;
         transform: translateX(3px) scale(1.01);
+        box-shadow: var(--shadow-strong);
     }}
     section[data-testid="stSidebar"] .stButton > button:active {{
         transform: translateX(1px) scale(0.99);
@@ -602,17 +605,20 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     /* ---- Active nav item ----
        A hidden marker div rendered right before the active nav button
        (see sidebar() in app.py) lets pure CSS pick out that one button
-       via an adjacent-sibling selector, with no hardcoded per-page CSS. */
+       via an adjacent-sibling selector, with no hardcoded per-page CSS.
+       Selected page gets the deeper hover-green + a light ring so it
+       reads as clearly "on" against its solid-green siblings. */
     section[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button {{
-        background: var(--primary-soft) !important;
-        border-color: var(--primary) !important;
-        color: var(--primary) !important;
+        background: var(--primary-hover) !important;
+        border-color: var(--text-on-primary) !important;
+        color: var(--text-on-primary) !important;
         font-weight: 800 !important;
+        box-shadow: var(--shadow-strong) !important;
     }}
     section[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button:hover {{
-        background: var(--primary-soft) !important;
+        background: var(--primary-hover) !important;
         transform: translateX(3px);
     }}
     .nav-active-marker {{ display: none; }}
@@ -1373,7 +1379,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         transition: opacity 0.22s ease, transform 0.22s ease;
     }}
     section[data-testid="stSidebar"] .stButton > button:not(:disabled):hover {{
-        background: var(--primary-soft) !important;
+        background: var(--primary-hover) !important;
         transform: translateX(2px);
     }}
 
