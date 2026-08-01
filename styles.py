@@ -152,10 +152,6 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         {palette}
     }}
 
-    html, body {{
-        color-scheme: {"dark" if dark_mode else "light"};
-    }}
-
     html, body, [class*="css"] {{
         font-family: 'Manrope', sans-serif;
     }}
@@ -168,16 +164,10 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         max-width: 1300px;
     }}
 
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stMain"] {{
-        background: var(--background) !important;
-        color: var(--text-secondary) !important;
+    .stApp {{
+        background: var(--background);
+        color: var(--text-secondary);
         transition: background-color 0.35s ease, color 0.35s ease;
-    }}
-    section[data-testid="stSidebar"] {{
-        background: var(--sidebar) !important;
-    }}
-    [data-testid="stHeader"] {{
-        background: transparent !important;
     }}
 
     /* ---------- Typography ---------- */
@@ -436,7 +426,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stSidebar"] {{
         background: var(--sidebar);
         border-right: 1px solid var(--border);
-        box-shadow: var(--shadow);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.06);
         transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
                     min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         overflow-x: hidden;
@@ -548,7 +538,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] div[data-testid="stButton"] {{
         margin-bottom: 0.4rem;
     }}
-    section[data-testid="stSidebar"] .stButton > button {{
+    div[data-testid="stSidebar"] .stButton > button {{
         width: 100%;
         display: flex;
         align-items: center;
@@ -572,7 +562,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         transition: background 0.18s ease, border-color 0.18s ease,
                     color 0.18s ease, transform 0.18s ease;
     }}
-    section[data-testid="stSidebar"] .stButton > button p {{
+    div[data-testid="stSidebar"] .stButton > button p {{
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -581,16 +571,16 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
 
     /* Hover state — subtle bg + gentle shift, no layout jump */
-    section[data-testid="stSidebar"] .stButton > button:hover {{
+    div[data-testid="stSidebar"] .stButton > button:hover {{
         background: var(--card-hover);
         border-color: var(--border);
         color: var(--text-primary) !important;
         transform: translateX(3px) scale(1.01);
     }}
-    section[data-testid="stSidebar"] .stButton > button:active {{
+    div[data-testid="stSidebar"] .stButton > button:active {{
         transform: translateX(1px) scale(0.99);
     }}
-    section[data-testid="stSidebar"] .stButton > button:focus-visible {{
+    div[data-testid="stSidebar"] .stButton > button:focus-visible {{
         outline: 2px solid var(--focus-ring);
         outline-offset: 2px;
     }}
@@ -599,14 +589,14 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
        A hidden marker div rendered right before the active nav button
        (see sidebar() in app.py) lets pure CSS pick out that one button
        via an adjacent-sibling selector, with no hardcoded per-page CSS. */
-    section[data-testid="stSidebar"] .nav-active-marker
+    div[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button {{
         background: var(--primary-soft) !important;
         border-color: var(--primary) !important;
         color: var(--primary) !important;
         font-weight: 800 !important;
     }}
-    section[data-testid="stSidebar"] .nav-active-marker
+    div[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button:hover {{
         background: var(--primary-soft) !important;
         transform: translateX(3px);
@@ -863,38 +853,9 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         opacity: 0.75;
     }}
 
-    /* ---------- Radio buttons ---------- */
-    .stRadio > label {{
-        color: var(--text-secondary) !important;
-        font-weight: 600;
-        font-size: 0.85rem;
-    }}
-    .stRadio [role="radiogroup"] {{
-        gap: 0.6rem;
-    }}
-    .stRadio [data-baseweb="radio"] {{
-        background: transparent !important;
-    }}
-    .stRadio [data-baseweb="radio"] > div:first-child {{
-        border-color: var(--border-strong) !important;
-        background: var(--input-bg) !important;
-    }}
-    .stRadio [data-baseweb="radio"] input:checked + div {{
-        border-color: var(--primary) !important;
-    }}
-    .stRadio [data-baseweb="radio"] input:checked + div > div {{
-        background: var(--primary) !important;
-    }}
-    .stRadio label span[data-testid="stMarkdownContainer"] p,
-    .stRadio label div {{
-        color: var(--text-primary) !important;
-        font-weight: 500;
-    }}
-
     /* ---------- Text inputs / selects / textareas ---------- */
     div[data-baseweb="input"],
     div[data-baseweb="select"] > div,
-    div[data-baseweb="select"] > div > div,
     div[data-baseweb="base-input"],
     textarea,
     .stTextInput input,
