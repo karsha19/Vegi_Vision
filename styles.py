@@ -621,8 +621,11 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         margin-bottom: 0.45rem;
         letter-spacing: 0.01em;
     }}
-    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > div > div,
-    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div {{
+    section[data-testid="stSidebar"] .sidebar-lang-block > div,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[role="combobox"],
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-baseweb="select"] > div,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-testid="stBaseSelect"] > div,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-testid="stSelectbox"] > div > div {{
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
         border-radius: 999px !important;
@@ -630,10 +633,16 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         min-height: 42px;
         box-shadow: none !important;
     }}
-    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > div > div:hover,
-    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div:hover,
-    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > div > div:focus-within,
-    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div:focus-within {{
+    section[data-testid="stSidebar"] .sidebar-lang-block > div:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[role="combobox"]:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-baseweb="select"] > div:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-testid="stBaseSelect"] > div:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-testid="stSelectbox"] > div > div:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block > div:focus-within,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[role="combobox"]:focus-within,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-baseweb="select"] > div:focus-within,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-testid="stBaseSelect"] > div:focus-within,
+    section[data-testid="stSidebar"] .sidebar-lang-block [data-testid="stSelectbox"] > div > div:focus-within {{
         border-color: var(--primary) !important;
         box-shadow: 0 0 0 3px var(--primary-soft) !important;
     }}
