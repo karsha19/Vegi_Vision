@@ -316,6 +316,10 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-lang-select div[data-baseweb="select"] > div:hover {{
         border-color: var(--primary) !important;
     }}
+    .auth-lang-select div[data-baseweb="select"] * {{
+        background: transparent !important;
+        color: var(--text-primary) !important;
+    }}
 
     /* ---- The auth card itself ----
        A premium, slightly glassy card: bigger radius, brand-gradient
@@ -652,7 +656,15 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         min-height: 42px;
         box-shadow: none !important;
     }}
-    section[data-testid="stSidebar"] .st-key-sidebar_lang_select div[data-baseweb="select"] * {{
+    /* BaseWeb nests the rendered value (flag + language name) several
+       divs/spans deep inside the control, and some of those inner nodes
+       carry their own default (light) background / inline color from
+       the library's base theme. Force every descendant transparent and
+       matching text color so only the outer pill's background above is
+       ever visible, in both light and dark mode. */
+    section[data-testid="stSidebar"] .st-key-sidebar_lang_select div[data-baseweb="select"] *,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] * {{
+        background: transparent !important;
         color: var(--text-primary) !important;
     }}
     section[data-testid="stSidebar"] .st-key-sidebar_lang_select div[data-baseweb="select"] > div:hover,
@@ -925,6 +937,18 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-baseweb="input"],
     div[data-baseweb="select"] > div {{
         min-height: 48px;
+    }}
+    /* Same fix as the sidebar language pill above, applied to every
+       select in the app (Profile > Preferences language select,
+       cuisine/gender/activity/etc. dropdowns): BaseWeb wraps the
+       selected value in nested divs/spans that can carry their own
+       default light background and inline text color, which the
+       2-levels-deep rule above doesn't reach. Neutralize all of them
+       so the themed control background/text color (set above) is what
+       actually shows. */
+    div[data-baseweb="select"] * {{
+        background: transparent !important;
+        color: var(--text-primary) !important;
     }}
     div[data-baseweb="input"]:hover,
     div[data-baseweb="select"] > div:hover {{
