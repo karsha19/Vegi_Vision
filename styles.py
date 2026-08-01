@@ -152,6 +152,10 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         {palette}
     }}
 
+    html, body {{
+        color-scheme: {"dark" if dark_mode else "light"};
+    }}
+
     html, body, [class*="css"] {{
         font-family: 'Manrope', sans-serif;
     }}
@@ -859,9 +863,38 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         opacity: 0.75;
     }}
 
+    /* ---------- Radio buttons ---------- */
+    .stRadio > label {{
+        color: var(--text-secondary) !important;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }}
+    .stRadio [role="radiogroup"] {{
+        gap: 0.6rem;
+    }}
+    .stRadio [data-baseweb="radio"] {{
+        background: transparent !important;
+    }}
+    .stRadio [data-baseweb="radio"] > div:first-child {{
+        border-color: var(--border-strong) !important;
+        background: var(--input-bg) !important;
+    }}
+    .stRadio [data-baseweb="radio"] input:checked + div {{
+        border-color: var(--primary) !important;
+    }}
+    .stRadio [data-baseweb="radio"] input:checked + div > div {{
+        background: var(--primary) !important;
+    }}
+    .stRadio label span[data-testid="stMarkdownContainer"] p,
+    .stRadio label div {{
+        color: var(--text-primary) !important;
+        font-weight: 500;
+    }}
+
     /* ---------- Text inputs / selects / textareas ---------- */
     div[data-baseweb="input"],
     div[data-baseweb="select"] > div,
+    div[data-baseweb="select"] > div > div,
     div[data-baseweb="base-input"],
     textarea,
     .stTextInput input,
