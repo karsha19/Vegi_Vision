@@ -42,8 +42,17 @@ FONT_IMPORT = """
 """
 
 
+def build_hidden_style_html(css_rules: str) -> str:
+    """Return HTML that injects a stylesheet while keeping it completely hidden from the UI."""
+    return (
+        "<div aria-hidden='true' style=\"position:absolute; left:-9999px; top:-9999px; "
+        "width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;\">"
+        f"<style>{css_rules}</style></div>"
+    )
+
+
 def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
-    """Return the full <style> block for the requested mode.
+    """Return the CSS rules for the requested theme mode.
 
     All actual color values live in exactly two palettes below. Nothing
     downstream (this file's component rules, or app.py) ever repeats a
@@ -139,7 +148,6 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
 
     return f"""
-    <style>
     :root {{
         {palette}
     }}

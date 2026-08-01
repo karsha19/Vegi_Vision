@@ -10,6 +10,11 @@ font = "sans serif"
 [server]
 headless = true
 runOnSave = false
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
+
+[client]
+showSidebarNavigation = false

@@ -14,12 +14,20 @@ import streamlit as st
 from PIL import Image
 from dotenv import load_dotenv
 
-import db
+import importlib
+import db as db_module
 import gemini_helper as gm
 import voice_assistant as va
 import nutrition_pdf
-from styles import get_theme_css, FONT_IMPORT
+from styles import get_theme_css, FONT_IMPORT, build_hidden_style_html
 from translations import t, LANGUAGES, DEFAULT_LANGUAGE, current_language_meta
+
+# Ensure the app always uses the current database module implementation.
+db = importlib.import_module("db")
+
+# Keep a direct reference to the module for the notes feature so the runtime
+# always resolves the latest implementation even if the imported name is stale.
+_db_impl = db_module if hasattr(db_module, "get_user_notes") else db
 
 load_dotenv()
 
@@ -65,7 +73,7 @@ init_session()
 
 def inject_css():
     st.markdown(FONT_IMPORT, unsafe_allow_html=True)
-   
+
     try:
         css = get_theme_css(st.session_state.dark_mode, st.session_state.sidebar_collapsed)
     except TypeError:
@@ -76,13 +84,27 @@ def inject_css():
             "the latest version so the sidebar collapse/expand feature works.",
             icon="⚠️",
         )
-    st.markdown(css, unsafe_allow_html=True)
+
+    css_rules = f"""
+    {css}
+    .stApp {{
+        min-height: 100vh;
+        background-color: var(--background);
+    }}
+    .block-container {{
+        padding-top: 1.2rem !important;
+        padding-bottom: 3rem !important;
+    }}
+    .stButton > button, .stTextInput > div > div > input, .stTextArea > div > textarea, .stSelectbox > div > div, .stMultiSelect > div > div, .stNumberInput > div > div > input {{
+        border-radius: 14px;
+    }}
+    """
+
+    st.markdown(build_hidden_style_html(css_rules), unsafe_allow_html=True)
+
     if current_language_meta().get("rtl"):
         st.markdown(
-            """<style>
-            .stApp, .stApp * { direction: rtl; }
-            div[data-testid="stSidebar"] .stButton > button:hover { transform: translateX(-3px); }
-            </style>""",
+            build_hidden_style_html('.stApp, .stApp * { direction: rtl; } div[data-testid="stSidebar"] .stButton > button:hover { transform: translateX(-3px); }'),
             unsafe_allow_html=True,
         )
 
@@ -975,7 +997,12 @@ def page_notes():
     )
 
     user_id = st.session_state.user["id"]
-    notes = db.get_user_notes(user_id)
+    notes = []
+    if hasattr(_db_impl, "get_user_notes"):
+        try:
+            notes = _db_impl.get_user_notes(user_id)
+        except Exception:
+            notes = []
 
     if "notes_edit_id" not in st.session_state:
         st.session_state.notes_edit_id = None
@@ -989,12 +1016,20 @@ def page_notes():
             submitted = st.form_submit_button(t("btn_save_note"), use_container_width=True)
 
         if submitted:
-            if st.session_state.notes_edit_id:
-                db.update_note(st.session_state.notes_edit_id, user_id, title, content, created_at)
-                st.success(t("msg_note_updated"))
+            if st.session_state.notes_edit_id and hasattr(_db_impl, "update_note"):
+                try:
+                    _db_impl.update_note(st.session_state.notes_edit_id, user_id, title, content, created_at)
+                    st.success(t("msg_note_updated"))
+                except Exception as exc:
+                    st.error(f"Could not update note: {exc}")
+            elif hasattr(_db_impl, "create_note"):
+                try:
+                    _db_impl.create_note(user_id, title, content, created_at)
+                    st.success(t("msg_note_created"))
+                except Exception as exc:
+                    st.error(f"Could not create note: {exc}")
             else:
-                db.create_note(user_id, title, content, created_at)
-                st.success(t("msg_note_created"))
+                st.error("Notes storage is unavailable right now.")
             st.session_state.notes_edit_id = None
             st.session_state.notes_title = ""
             st.session_state.notes_content = ""
@@ -1024,8 +1059,14 @@ def page_notes():
                     st.rerun()
             with col_b:
                 if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True):
-                    db.delete_note(note["id"], user_id)
-                    st.success(t("msg_note_deleted"))
+                    if hasattr(_db_impl, "delete_note"):
+                        try:
+                            _db_impl.delete_note(note["id"], user_id)
+                            st.success(t("msg_note_deleted"))
+                        except Exception as exc:
+                            st.error(f"Could not delete note: {exc}")
+                    else:
+                        st.error("Notes storage is unavailable right now.")
                     st.rerun()
 
 
