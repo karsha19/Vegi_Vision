@@ -1067,7 +1067,7 @@ def page_notes():
             st.markdown(f'<div style="white-space:pre-wrap; line-height:1.7; color:var(--text-secondary);">{note.get("content", "").replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
             col_a, col_b = st.columns([1, 1])
             with col_a:
-                if st.button(t("btn_edit_note"), key=f"edit_note_{note['id']}", use_container_width=True):
+                if st.button(t("btn_edit_note"), key=f"edit_note_{note['id']}", use_container_width=True, type="secondary"):
                     st.session_state.notes_edit_id = note["id"]
                     st.session_state._notes_prefill_pending = {
                         "title": note.get("title", ""),
@@ -1076,7 +1076,7 @@ def page_notes():
                     }
                     st.rerun()
             with col_b:
-                if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True):
+                if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True, type="secondary"):
                     if hasattr(_db_impl, "delete_note"):
                         try:
                             _db_impl.delete_note(note["id"], user_id)

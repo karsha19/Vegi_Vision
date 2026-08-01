@@ -1415,6 +1415,77 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     @media (prefers-reduced-motion: reduce) {{
         * {{ transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }}
     }}
+
+    /* ================================================================
+       PREMIUM PASS 2 — primary/secondary hierarchy, richer depth,
+       refined section rhythm, clearer sidebar selected-state.
+       ================================================================ */
+
+    /* Secondary buttons: quiet, outlined, recede behind primary actions */
+    .stButton > button[kind="secondary"],
+    .stFormSubmitButton > button[kind="secondary"] {{
+        background: transparent !important;
+        color: var(--text-secondary) !important;
+        border: 1.5px solid var(--border-strong) !important;
+        border-radius: 999px !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+    }}
+    .stButton > button[kind="secondary"]:hover {{
+        background: var(--surface) !important;
+        border-color: var(--primary) !important;
+        color: var(--primary) !important;
+        transform: translateY(-1px);
+    }}
+    .stButton > button[kind="secondary"]:active {{
+        transform: translateY(0) scale(0.98);
+    }}
+
+    /* Delete-style secondary actions get a subtle warning tint on hover,
+       matched by key prefix so no functional change is needed elsewhere */
+    div[class*="st-key-delete_"] .stButton > button[kind="secondary"]:hover {{
+        border-color: var(--error) !important;
+        color: var(--error) !important;
+        background: var(--error-bg) !important;
+    }}
+
+    /* Primary buttons get a touch more visual weight for clear hierarchy */
+    .stButton > button[kind="primary"],
+    .stFormSubmitButton > button {{
+        font-weight: 700 !important;
+        letter-spacing: 0.01em;
+    }}
+
+    /* Richer, slightly warmer elevation on the main content cards for a
+       more premium sense of depth than a flat single shadow value */
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04), var(--shadow) !important;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+        box-shadow: 0 2px 4px rgba(0,0,0,0.06), var(--shadow-strong) !important;
+    }}
+
+    /* Section headers / eyebrows: tighter rhythm, more magazine-like */
+    .eyebrow {{
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.35rem;
+    }}
+
+    /* Sidebar: clearer selected-state with a left accent bar, so the
+       active page reads instantly at a glance rather than just a tint */
+    section[data-testid="stSidebar"] .nav-active-marker {{
+        border-radius: 0 6px 6px 0;
+    }}
+    section[data-testid="stSidebar"] .stButton > button {{
+        font-weight: 600 !important;
+    }}
+
+    /* Consistent generous spacing rhythm between stacked sidebar nav items */
+    section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.stButton) {{
+        margin-bottom: 0.15rem;
+    }}
     </style>
     """
 
