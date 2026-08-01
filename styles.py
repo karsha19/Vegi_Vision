@@ -1320,6 +1320,101 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     ::-webkit-scrollbar {{ width: 8px; }}
     ::-webkit-scrollbar-thumb {{ background: var(--text-muted); border-radius: 8px; }}
+
+    /* ================================================================
+       PREMIUM POLISH LAYER — global refinement pass. Purely additive:
+       raises consistency of motion, elevation and hierarchy without
+       touching any selector logic defined above.
+       ================================================================ */
+
+    /* Consistent, slightly springy easing for every interactive element */
+    .stButton > button,
+    .stDownloadButton > button,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"],
+    .stTextInput input,
+    .stTextArea textarea,
+    section[data-testid="stSidebar"] .stButton > button,
+    [data-testid="stFileUploaderDropzone"],
+    .stRadio [data-baseweb="radio"] > div:first-child {{
+        transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.22s ease,
+                    border-color 0.2s ease,
+                    background-color 0.2s ease,
+                    color 0.2s ease !important;
+    }}
+
+    /* Buttons: soft lift on hover, gentle press on click */
+    .stButton > button:not(:disabled):hover,
+    .stDownloadButton > button:not(:disabled):hover {{
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-strong) !important;
+    }}
+    .stButton > button:not(:disabled):active,
+    .stDownloadButton > button:not(:disabled):active {{
+        transform: translateY(0px) scale(0.98);
+    }}
+
+    /* Cards / bento blocks: subtle lift on hover for anything already
+       using the app's rounded-card shadow pattern */
+    .stContainer, div[data-testid="stVerticalBlockBorderWrapper"] {{
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+        box-shadow: var(--shadow-strong);
+    }}
+
+    /* Sidebar nav: clearer active-item accent bar + smoother hover glow */
+    section[data-testid="stSidebar"] .nav-active-marker {{
+        transition: opacity 0.22s ease, transform 0.22s ease;
+    }}
+    section[data-testid="stSidebar"] .stButton > button:not(:disabled):hover {{
+        background: var(--primary-soft) !important;
+        transform: translateX(2px);
+    }}
+
+    /* Form focus states: soft glow ring using brand primary, consistent
+       across text inputs, selects and radio */
+    .stTextInput input:focus-visible,
+    .stTextArea textarea:focus-visible,
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-baseweb="input"]:focus-within {{
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px var(--primary-soft) !important;
+    }}
+
+    /* Section headers / eyebrow labels: tighter, more premium rhythm */
+    [class*="eyebrow"], .section-eyebrow {{
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        opacity: 0.85;
+    }}
+
+    /* File uploader dropzone: rounded, theme-aware, gentle hover highlight */
+    [data-testid="stFileUploaderDropzone"] {{
+        border-radius: 16px !important;
+        border: 1.5px dashed var(--border-strong) !important;
+        background: var(--surface) !important;
+    }}
+    [data-testid="stFileUploaderDropzone"]:hover {{
+        border-color: var(--primary) !important;
+        background: var(--primary-soft) !important;
+    }}
+
+    /* Refined scrollbar: rounded thumb, transparent track, theme-aware */
+    ::-webkit-scrollbar-track {{ background: transparent; }}
+    ::-webkit-scrollbar-thumb {{
+        background: var(--border-strong);
+        border-radius: 8px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }}
+    ::-webkit-scrollbar-thumb:hover {{ background: var(--text-muted); }}
+
+    /* Reduce motion for users who ask for it */
+    @media (prefers-reduced-motion: reduce) {{
+        * {{ transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }}
+    }}
     </style>
     """
 
