@@ -610,11 +610,35 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
 
     /* ---- Language select inside sidebar ---- */
-    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {{
-        background: var(--input-bg) !important;
-        border: 1px solid var(--border-strong) !important;
-        border-radius: 12px !important;
+    .sidebar-lang-block {{
+        margin-top: 0.15rem;
+        padding: 0.1rem 0.05rem 0;
+    }}
+    .sidebar-lang-label {{
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary) !important;
+        margin-bottom: 0.45rem;
+        letter-spacing: 0.01em;
+    }}
+    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > div > div,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div {{
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 999px !important;
         color: var(--text-primary) !important;
+        min-height: 42px;
+        box-shadow: none !important;
+    }}
+    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > div > div:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div:hover,
+    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > div > div:focus-within,
+    section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div:focus-within {{
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px var(--primary-soft) !important;
+    }}
+    section[data-testid="stSidebar"] .sidebar-lang-block .stSelectbox > label {{
+        display: none !important;
     }}
 
     /* ---------- Generic card ----------

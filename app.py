@@ -325,10 +325,12 @@ def sidebar():
 
         lang_codes = list(LANGUAGES.keys())
         current_idx = lang_codes.index(st.session_state.language)
+        st.markdown('<div class="sidebar-lang-block">', unsafe_allow_html=True)
+        if not collapsed:
+            st.markdown(f'<div class="sidebar-lang-label">🌐 {t("language_label")}</div>', unsafe_allow_html=True)
         if collapsed:
             lang_labels = [LANGUAGES[c]["flag"] for c in lang_codes]
         else:
-            st.markdown(f'<div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.3rem;">🌐 {t("language_label")}</div>', unsafe_allow_html=True)
             lang_labels = [f"{LANGUAGES[c]['flag']} {LANGUAGES[c]['name']}" for c in lang_codes]
         chosen = st.selectbox(
             t("language_label"), lang_labels, index=current_idx, key="sidebar_lang_select", label_visibility="collapsed"
@@ -337,6 +339,7 @@ def sidebar():
         if chosen_code != st.session_state.language:
             st.session_state.language = chosen_code
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
 
