@@ -556,7 +556,8 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         line-height: 1.2;
         padding: 0.78rem 1rem;
         min-height: 46px;
-        border-radius: 999px;
+        border-radius: 999px !important;
+        overflow: hidden;
         box-shadow: none;
         transition: background 0.18s ease, border-color 0.18s ease,
                     color 0.18s ease, transform 0.18s ease;
@@ -741,7 +742,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: linear-gradient(135deg, var(--primary), var(--primary-hover));
         color: var(--text-on-primary) !important;
         border: none;
-        border-radius: 999px;
+        border-radius: 999px !important;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
         font-size: 0.92rem;
@@ -792,7 +793,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-on-primary) !important;
         width: 100%;
         min-height: 50px;
-        border-radius: 999px;
+        border-radius: 999px !important;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
         font-size: 0.98rem;
