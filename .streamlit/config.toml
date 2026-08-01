@@ -1,20 +1,15 @@
-
 [theme]
 base = "light"
-primaryColor = "#5b7a52"
-backgroundColor = "#f8f5ef"
-secondaryBackgroundColor = "#f1ece1"
-textColor = "#262620"
+primaryColor = "#5A7D4D"
+backgroundColor = "#FAF7F0"
+secondaryBackgroundColor = "#F1ECE1"
+textColor = "#222222"
 font = "sans serif"
 
 [server]
-headless = true
-runOnSave = false
 enableCORS = false
-enableXsrfProtection = false
+enableXsrfProtection = true
+maxUploadSize = 10
 
 [browser]
 gatherUsageStats = false
-
-[client]
-showSidebarNavigation = false
