@@ -9,6 +9,7 @@ import os
 import base64
 import io
 import time
+from datetime import datetime
 import streamlit as st
 from PIL import Image
 from dotenv import load_dotenv
@@ -278,6 +279,7 @@ def sidebar():
             ("nutrition", "🥗", "nav_nutrition"),
             ("history", "📖", "nav_history"),
             ("favorites", "❤️", "nav_favorites"),
+            ("notes", "📝", "nav_notes"),
             ("profile", "🪴", "nav_profile"),
         ]
         for key, icon, label_key in nav_items:
@@ -957,6 +959,76 @@ def page_favorites():
                     st.rerun()
 
 
+# ----------------------------------------------------------- notes page ----
+
+def page_notes():
+    st.markdown(
+        f"""
+        <div class="top-header">
+            <div>
+                <div class="kicker">{t('kicker_notes')}</div>
+                <h1>{t('title_notes')}</h1>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    user_id = st.session_state.user["id"]
+    notes = db.get_user_notes(user_id)
+
+    if "notes_edit_id" not in st.session_state:
+        st.session_state.notes_edit_id = None
+
+    with card(accent=True):
+        st.markdown(f'<span class="eyebrow">✍️ {t("section_new_note")}</span>', unsafe_allow_html=True)
+        with st.form("notes_form"):
+            title = st.text_input(t("label_note_title"), key="notes_title")
+            content = st.text_area(t("label_note_content"), height=180, key="notes_content")
+            created_at = st.text_input(t("label_note_date"), value=datetime.utcnow().strftime("%Y-%m-%d %H:%M"), key="notes_date")
+            submitted = st.form_submit_button(t("btn_save_note"), use_container_width=True)
+
+        if submitted:
+            if st.session_state.notes_edit_id:
+                db.update_note(st.session_state.notes_edit_id, user_id, title, content, created_at)
+                st.success(t("msg_note_updated"))
+            else:
+                db.create_note(user_id, title, content, created_at)
+                st.success(t("msg_note_created"))
+            st.session_state.notes_edit_id = None
+            st.session_state.notes_title = ""
+            st.session_state.notes_content = ""
+            st.session_state.notes_date = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+            st.rerun()
+
+    st.markdown('<hr class="divider-thin">', unsafe_allow_html=True)
+
+    if not notes:
+        empty_state("📝", t("empty_no_notes_title"), t("empty_no_notes_sub"))
+        return
+
+    for note in notes:
+        with card():
+            st.markdown(f'<div class="recipe-title" style="font-size:1.12rem;">{note.get("title", t("untitled_note"))}</div>', unsafe_allow_html=True)
+            created = note.get("created_at") or ""
+            updated = note.get("updated_at") or created
+            st.caption(f"🕓 {created}  •  {t('label_last_updated')}: {updated}")
+            st.markdown(f'<div style="white-space:pre-wrap; line-height:1.7; color:var(--text-secondary);">{note.get("content", "").replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
+            col_a, col_b = st.columns([1, 1])
+            with col_a:
+                if st.button(t("btn_edit_note"), key=f"edit_note_{note['id']}", use_container_width=True):
+                    st.session_state.notes_edit_id = note["id"]
+                    st.session_state.notes_title = note.get("title", "")
+                    st.session_state.notes_content = note.get("content", "")
+                    st.session_state.notes_date = note.get("updated_at") or note.get("created_at") or datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                    st.rerun()
+            with col_b:
+                if st.button(t("btn_delete_note"), key=f"delete_note_{note['id']}", use_container_width=True):
+                    db.delete_note(note["id"], user_id)
+                    st.success(t("msg_note_deleted"))
+                    st.rerun()
+
+
 # ------------------------------------------------------------ profile page
 
 def _crop_to_square(img: Image.Image, size: int = 320) -> Image.Image:
@@ -1263,6 +1335,8 @@ def main():
         page_history()
     elif page == "favorites":
         page_favorites()
+    elif page == "notes":
+        page_notes()
     elif page == "profile":
         page_profile()
 

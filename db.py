@@ -2,6 +2,7 @@ import sqlite3
 import json
 import hashlib
 import os
+from typing import Optional
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -98,6 +99,17 @@ def init_db():
                 UNIQUE(user_id, plan_id),
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
                 FOREIGN KEY (plan_id) REFERENCES nutrition_plans (id) ON DELETE CASCADE
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )
         """)
         _migrate_users_table()
@@ -266,6 +278,46 @@ def get_user_stats(user_id: int) -> dict:
         ).fetchone()["c"]
     return {"total_recipes": total, "total_favorites": favs, "unique_cuisines": cuisines}
 
+
+# notes
+
+def create_note(user_id: int, title: str, content: str, created_at: Optional[str] = None) -> int:
+    timestamp = created_at or datetime.utcnow().isoformat()
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO notes (user_id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, title.strip() or "Untitled Note", content.strip(), timestamp, timestamp),
+        )
+        return cur.lastrowid
+
+
+def get_user_notes(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM notes WHERE user_id = ? ORDER BY created_at DESC, id DESC",
+            (user_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_note(note_id: int, user_id: int):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id)).fetchone()
+    return dict(row) if row else None
+
+
+def update_note(note_id: int, user_id: int, title: str, content: str, updated_at: Optional[str] = None):
+    timestamp = updated_at or datetime.utcnow().isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE notes SET title = ?, content = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            (title.strip() or "Untitled Note", content.strip(), timestamp, note_id, user_id),
+        )
+
+
+def delete_note(note_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id))
 
 
 # profile management
