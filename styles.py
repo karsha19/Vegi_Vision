@@ -138,7 +138,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         }
         section[data-testid="stSidebar"] .stButton > button:hover {
             transform: none;
-            background: var(--card-hover);
+            background: var(--primary-hover);
         }
         section[data-testid="stSidebar"] div[data-baseweb="select"] {
             font-size: 0.75rem;
@@ -150,6 +150,10 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     return f"""
     :root {{
         {palette}
+        --radius-pill: 999px;
+        --radius-card: 20px;
+        --radius-input: 12px;
+        --radius-icon: 16px;
     }}
 
     html, body {{
@@ -250,7 +254,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         justify-content: center;
         width: 54px;
         height: 54px;
-        border-radius: 16px;
+        border-radius: var(--radius-card);
         background: var(--primary-soft);
         font-size: 1.6rem;
         margin-bottom: 1rem;
@@ -268,7 +272,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-brand-divider {{
         width: 46px;
         height: 3px;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: linear-gradient(90deg, var(--primary), var(--secondary-accent));
         margin: 0 auto 0.7rem auto;
     }}
@@ -289,7 +293,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         height: 40px !important;
         min-width: 40px !important;
         padding: 0 !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
         box-shadow: none !important;
@@ -306,7 +310,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .auth-lang-select div[data-baseweb="select"] > div {{
         background: transparent !important;
         border: 1px solid var(--border) !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         font-size: 0.8rem;
     }}
     .auth-lang-select div[data-baseweb="select"] > div:hover {{
@@ -320,7 +324,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.auth-card-tag) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 22px !important;
+        border-radius: var(--radius-card) !important;
         box-shadow: var(--shadow-strong) !important;
         padding: 0.4rem !important;
         max-width: 480px;
@@ -381,43 +385,50 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     /* ---- Segmented pill tabs (Sign In / Create Account, and reused
        app-wide for a consistent tab language on e.g. the Generate page) ---- */
-    .stTabs [data-baseweb="tab-list"] {{
+    .stTabs [role="tablist"] {{
         gap: 0.25rem;
         border-bottom: none;
         background: var(--surface);
         padding: 0.3rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill) !important;
         border: 1px solid var(--border);
+        overflow: hidden;
     }}
-    .stTabs [data-baseweb="tab"] {{
+    .stTabs [data-testid="stTab"] {{
         background: transparent;
         color: var(--text-muted) !important;
         font-weight: 700;
         font-size: 0.86rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill) !important;
         padding: 0.55rem 1.2rem;
+        overflow: hidden;
         transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }}
-    .stTabs [data-baseweb="tab"] p {{
+    .stTabs [data-testid="stTab"] * {{
+        border-radius: inherit;
+    }}
+    .stTabs [data-testid="stTab"] p {{
         color: inherit !important;
     }}
-    .stTabs [data-baseweb="tab"]:hover {{
+    .stTabs [data-testid="stTab"]:hover {{
         color: var(--text-primary) !important;
         background: var(--card-hover);
     }}
-    .stTabs [aria-selected="true"] {{
+    .stTabs [data-testid="stTab"][data-selected],
+    .stTabs [data-testid="stTab"][aria-selected="true"] {{
         color: var(--text-on-primary) !important;
         background: var(--primary) !important;
+        border-radius: var(--radius-pill) !important;
         box-shadow: var(--shadow);
     }}
-    .stTabs [aria-selected="true"] p {{
+    .stTabs [data-testid="stTab"][data-selected] p,
+    .stTabs [data-testid="stTab"][aria-selected="true"] p {{
         color: var(--text-on-primary) !important;
     }}
-    .stTabs [data-baseweb="tab-highlight"],
-    .stTabs [data-baseweb="tab-border"] {{
+    .stTabs [data-testid="stTab"] .react-aria-SelectionIndicator {{
         display: none !important;
     }}
-    .stTabs [data-testid="stTabsPanel"] {{
+    .stTabs [data-testid="stTabPanel"] {{
         padding-top: 1.2rem;
     }}
 
@@ -557,20 +568,20 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        background: transparent;
+        background: var(--primary);
         border: 1px solid transparent;
-        color: var(--text-secondary) !important;
+        color: var(--text-on-primary) !important;
         font-weight: 600;
         font-size: 0.95rem;
         letter-spacing: 0.01em;
         line-height: 1.2;
         padding: 0.78rem 1rem;
         min-height: 46px;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         overflow: hidden;
-        box-shadow: none;
+        box-shadow: var(--shadow);
         transition: background 0.18s ease, border-color 0.18s ease,
-                    color 0.18s ease, transform 0.18s ease;
+                    color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
     }}
     section[data-testid="stSidebar"] .stButton > button p {{
         white-space: nowrap;
@@ -580,12 +591,13 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         margin: 0;
     }}
 
-    /* Hover state — subtle bg + gentle shift, no layout jump */
+    /* Hover state — deeper green + gentle shift, no layout jump */
     section[data-testid="stSidebar"] .stButton > button:hover {{
-        background: var(--card-hover);
-        border-color: var(--border);
-        color: var(--text-primary) !important;
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+        color: var(--text-on-primary) !important;
         transform: translateX(3px) scale(1.01);
+        box-shadow: var(--shadow-strong);
     }}
     section[data-testid="stSidebar"] .stButton > button:active {{
         transform: translateX(1px) scale(0.99);
@@ -595,20 +607,18 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         outline-offset: 2px;
     }}
 
-    /* ---- Active nav item ----
-       A hidden marker div rendered right before the active nav button
-       (see sidebar() in app.py) lets pure CSS pick out that one button
-       via an adjacent-sibling selector, with no hardcoded per-page CSS. */
+    /* ---- Active nav item ---- */
     section[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button {{
-        background: var(--primary-soft) !important;
-        border-color: var(--primary) !important;
-        color: var(--primary) !important;
+        background: var(--primary-hover) !important;
+        border-color: var(--text-on-primary) !important;
+        color: var(--text-on-primary) !important;
         font-weight: 800 !important;
+        box-shadow: var(--shadow-strong) !important;
     }}
     section[data-testid="stSidebar"] .nav-active-marker
         + div[data-testid="stButton"] > button:hover {{
-        background: var(--primary-soft) !important;
+        background: var(--primary-hover) !important;
         transform: translateX(3px);
     }}
     .nav-active-marker {{ display: none; }}
@@ -637,7 +647,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stSidebar"] .sidebar-lang-block div[data-baseweb="select"] > div {{
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         color: var(--text-primary) !important;
         min-height: 42px;
         box-shadow: none !important;
@@ -669,7 +679,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 22px !important;
+        border-radius: var(--radius-card) !important;
         box-shadow: var(--shadow) !important;
         transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.2s ease;
         margin-bottom: 1.1rem;
@@ -720,7 +730,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         font-size: 0.72rem;
         font-weight: 600;
         padding: 0.28rem 0.75rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         margin: 0 0.3rem 0.3rem 0;
     }}
     .pill.green {{ background: var(--primary); color: var(--text-on-primary) !important; border: none; }}
@@ -783,7 +793,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: linear-gradient(135deg, var(--primary), var(--primary-hover));
         color: var(--text-on-primary) !important;
         border: none;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
         font-size: 0.92rem;
@@ -834,7 +844,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         color: var(--text-on-primary) !important;
         width: 100%;
         min-height: 50px;
-        border-radius: 999px !important;
+        border-radius: var(--radius-pill) !important;
         padding: 0.7rem 1.5rem;
         font-weight: 700;
         font-size: 0.98rem;
@@ -906,7 +916,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     textarea,
     .stTextInput input,
     .stTextArea textarea {{
-        border-radius: 12px !important;
+        border-radius: var(--radius-input) !important;
         background: var(--input-bg) !important;
         border: 1.5px solid var(--border) !important;
         color: var(--text-primary) !important;
@@ -958,7 +968,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-baseweb="popover"] ul {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
+        border-radius: var(--radius-input) !important;
         box-shadow: var(--shadow-strong) !important;
         padding: 4px !important;
     }}
@@ -1016,7 +1026,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     section[data-testid="stFileUploaderDropzone"] {{
         background: var(--surface) !important;
         border: 1.5px dashed var(--secondary-accent) !important;
-        border-radius: 18px !important;
+        border-radius: var(--radius-card) !important;
     }}
     section[data-testid="stFileUploaderDropzone"] * {{
         color: var(--text-secondary) !important;
@@ -1032,7 +1042,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
 
     /* ---------- Alerts / toasts (st.success, st.error, st.warning, st.info) ---------- */
     div[data-testid="stAlert"] {{
-        border-radius: 14px;
+        border-radius: var(--radius-input);
         border: 1px solid var(--border);
     }}
     div[data-testid="stAlertContentSuccess"], div[data-testid="stAlert"]:has(svg[title="Success"]) {{
@@ -1050,7 +1060,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stDialog"] > div {{
         background: var(--card) !important;
         border: 1px solid var(--border);
-        border-radius: 20px;
+        border-radius: var(--radius-card);
         box-shadow: var(--shadow-strong);
     }}
     div[data-testid="stDialog"] * {{
@@ -1068,7 +1078,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         padding: 3rem 1.5rem;
         background: var(--surface);
         border: 1px dashed var(--border);
-        border-radius: 22px;
+        border-radius: var(--radius-card);
         color: var(--text-muted) !important;
     }}
     .empty-state .icon {{ font-size: 2.4rem; margin-bottom: 0.6rem; }}
@@ -1104,7 +1114,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.card-tag-mini) {{
         background: var(--card) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 18px !important;
+        border-radius: var(--radius-card) !important;
         margin-bottom: 0.9rem;
         transition: transform 0.18s ease, background 0.18s ease;
     }}
@@ -1130,7 +1140,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .avatar-badge {{
         width: 54px;
         height: 54px;
-        border-radius: 16px;
+        border-radius: var(--radius-card);
         background: var(--primary-soft);
         display: flex;
         align-items: center;
@@ -1202,7 +1212,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .danger-zone-box {{
         border: 1px solid var(--error) !important;
         background: var(--error-bg) !important;
-        border-radius: 16px;
+        border-radius: var(--radius-card);
         padding: 1rem 1.1rem;
         margin-top: 0.6rem;
     }}
@@ -1255,7 +1265,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         font-weight: 700;
         letter-spacing: 0.04em;
         padding: 0.35rem 0.85rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         background: var(--surface);
         border: 1px solid var(--border);
         color: var(--text-secondary) !important;
@@ -1305,7 +1315,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
        so page CSS can't reach inside it — this just keeps its surrounding
        spacing consistent with the rest of the bento layout. */
     iframe[title="streamlit_mic_recorder.mic_recorder"] {{
-        border-radius: 14px;
+        border-radius: var(--radius-input);
     }}
 
     /* ---------- Focus visibility everywhere ---------- */
@@ -1360,7 +1370,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         z-index: 9998;
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 20px;
+        border-radius: var(--radius-card);
         box-shadow: var(--shadow-strong);
         padding: 14px 16px 10px;
         display: flex;
@@ -1433,7 +1443,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .chat-bubble {{
         max-width: 82%;
         padding: 9px 13px;
-        border-radius: 14px;
+        border-radius: var(--radius-input);
         font-size: 0.88rem;
         line-height: 1.45;
         word-wrap: break-word;
@@ -1455,7 +1465,7 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     .chat-panel-anchor .stButton > button {{
         font-size: 0.76rem;
         padding: 0.3rem 0.5rem;
-        border-radius: 999px;
+        border-radius: var(--radius-pill);
         min-height: 0;
     }}
     .chat-panel-anchor .stTextInput input {{
@@ -1464,8 +1474,129 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
     }}
     .chat-panel-anchor .stFormSubmitButton > button {{
         min-height: 38px;
-        border-radius: 12px;
+        border-radius: var(--radius-pill);
         padding: 0.4rem 0.6rem;
+    }}
+
+    /* ================================================================
+       PREMIUM POLISH LAYER
+       ================================================================ */
+    .stButton > button,
+    .stDownloadButton > button,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"],
+    .stTextInput input,
+    .stTextArea textarea,
+    section[data-testid="stSidebar"] .stButton > button,
+    [data-testid="stFileUploaderDropzone"],
+    .stRadio [data-baseweb="radio"] > div:first-child {{
+        transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.22s ease,
+                    border-color 0.2s ease,
+                    background-color 0.2s ease,
+                    color 0.2s ease !important;
+    }}
+    .stButton > button:not(:disabled):hover,
+    .stDownloadButton > button:not(:disabled):hover {{
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-strong) !important;
+    }}
+    .stButton > button:not(:disabled):active,
+    .stDownloadButton > button:not(:disabled):active {{
+        transform: translateY(0px) scale(0.98);
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+        box-shadow: var(--shadow) !important;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+        box-shadow: var(--shadow-strong) !important;
+    }}
+    section[data-testid="stSidebar"] .stButton > button:not(:disabled):hover {{
+        background: var(--primary-hover) !important;
+        transform: translateX(2px);
+    }}
+    .stTextInput input:focus-visible,
+    .stTextArea textarea:focus-visible,
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-baseweb="input"]:focus-within {{
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px var(--primary-soft) !important;
+    }}
+    [class*="eyebrow"], .section-eyebrow {{
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        opacity: 0.85;
+    }}
+    [data-testid="stFileUploaderDropzone"] {{
+        border-radius: var(--radius-card) !important;
+        border: 1.5px dashed var(--border-strong) !important;
+        background: var(--surface) !important;
+    }}
+    [data-testid="stFileUploaderDropzone"]:hover {{
+        border-color: var(--primary) !important;
+        background: var(--primary-soft) !important;
+    }}
+    ::-webkit-scrollbar-track {{ background: transparent; }}
+    ::-webkit-scrollbar-thumb {{
+        background: var(--border-strong);
+        border-radius: 8px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }}
+    ::-webkit-scrollbar-thumb:hover {{ background: var(--text-muted); }}
+    @media (prefers-reduced-motion: reduce) {{
+        * {{ transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }}
+    }}
+
+    /* ---- Primary/secondary button hierarchy ---- */
+    .stButton > button[kind="secondary"],
+    .stFormSubmitButton > button[kind="secondary"] {{
+        background: transparent !important;
+        color: var(--text-secondary) !important;
+        border: 1.5px solid var(--border-strong) !important;
+        border-radius: var(--radius-pill) !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+    }}
+    .stButton > button[kind="secondary"]:hover {{
+        background: var(--surface) !important;
+        border-color: var(--primary) !important;
+        color: var(--primary) !important;
+        transform: translateY(-1px);
+    }}
+    .stButton > button[kind="secondary"]:active {{
+        transform: translateY(0) scale(0.98);
+    }}
+    div[class*="st-key-delete_"] .stButton > button[kind="secondary"]:hover {{
+        border-color: var(--error) !important;
+        color: var(--error) !important;
+        background: var(--error-bg) !important;
+    }}
+    .stButton > button[kind="primary"],
+    .stFormSubmitButton > button {{
+        font-weight: 700 !important;
+        letter-spacing: 0.01em;
+    }}
+    section[data-testid="stSidebar"] .nav-active-marker {{
+        border-radius: 0 6px 6px 0;
+    }}
+    section[data-testid="stSidebar"] .stButton > button {{
+        font-weight: 600 !important;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.stButton) {{
+        margin-bottom: 0.15rem;
+    }}
+
+    /* Main CTA gets clear top-of-hierarchy prominence */
+    div[class*="st-key-generate_btn"] .stButton > button {{
+        font-size: 1.05rem !important;
+        padding: 0.85rem 1.5rem !important;
+        letter-spacing: 0.02em;
+        box-shadow: var(--shadow-strong) !important;
+    }}
+    div[class*="st-key-generate_btn"] .stButton > button:hover {{
+        transform: translateY(-2px) !important;
     }}
     </style>
     """
