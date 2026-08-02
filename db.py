@@ -4,7 +4,7 @@ import hashlib
 import os
 from typing import Optional
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "veggie_recipes.db")
 
@@ -112,17 +112,6 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )
         """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS chat_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                role TEXT NOT NULL,
-                content TEXT NOT NULL,
-                feedback TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )
-        """)
         _migrate_users_table()
 
 
@@ -139,7 +128,7 @@ def create_user(username: str, email: str, password: str):
         with get_conn() as conn:
             conn.execute(
                 "INSERT INTO users (username, email, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)",
-                (username, email, pw_hash, salt, datetime.utcnow().isoformat()),
+                (username, email, pw_hash, salt, datetime.now(timezone.utc).replace(tzinfo=None).isoformat()),
             )
         return True, "Account created successfully."
     except sqlite3.IntegrityError:
@@ -189,7 +178,7 @@ def save_recipe(user_id: int, recipe: dict) -> int:
                 json.dumps(recipe.get("substitutions", [])),
                 recipe.get("storage", ""),
                 recipe.get("image_data", ""),
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             ),
         )
         return cur.lastrowid
@@ -255,7 +244,7 @@ def toggle_favorite(user_id: int, recipe_id: int) -> bool:
             return False
         conn.execute(
             "INSERT INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?)",
-            (user_id, recipe_id, datetime.utcnow().isoformat()),
+            (user_id, recipe_id, datetime.now(timezone.utc).replace(tzinfo=None).isoformat()),
         )
         return True
 
@@ -293,7 +282,7 @@ def get_user_stats(user_id: int) -> dict:
 # notes
 
 def create_note(user_id: int, title: str, content: str, created_at: Optional[str] = None) -> int:
-    timestamp = created_at or datetime.utcnow().isoformat()
+    timestamp = created_at or datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO notes (user_id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
@@ -318,7 +307,7 @@ def get_note(note_id: int, user_id: int):
 
 
 def update_note(note_id: int, user_id: int, title: str, content: str, updated_at: Optional[str] = None):
-    timestamp = updated_at or datetime.utcnow().isoformat()
+    timestamp = updated_at or datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     with get_conn() as conn:
         conn.execute(
             "UPDATE notes SET title = ?, content = ?, updated_at = ? WHERE id = ? AND user_id = ?",
@@ -435,7 +424,7 @@ def save_nutrition_plan(user_id: int, profile: dict, plan: dict) -> int:
                 json.dumps(plan.get("recommended_vegetables", [])),
                 json.dumps(plan.get("substitutions", [])),
                 json.dumps(plan.get("weekly_tips", [])),
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             ),
         )
         return cur.lastrowid
@@ -482,7 +471,7 @@ def toggle_nutrition_favorite(user_id: int, plan_id: int) -> bool:
             return False
         conn.execute(
             "INSERT INTO nutrition_favorites (user_id, plan_id, created_at) VALUES (?, ?, ?)",
-            (user_id, plan_id, datetime.utcnow().isoformat()),
+            (user_id, plan_id, datetime.now(timezone.utc).replace(tzinfo=None).isoformat()),
         )
         return True
 
@@ -522,38 +511,3 @@ def match_recipes_for_vegetables(user_id: int, vegetable_names: list, limit: int
             params + [limit],
         ).fetchall()
     return [_row_to_recipe(r) for r in rows]
-
-
-# AI chat assistant
-
-def save_chat_message(user_id: int, role: str, content: str) -> int:
-    """Persist one chat turn (role is 'user' or 'assistant')."""
-    with get_conn() as conn:
-        cur = conn.execute(
-            "INSERT INTO chat_messages (user_id, role, content, created_at) VALUES (?, ?, ?, ?)",
-            (user_id, role, content, datetime.utcnow().isoformat()),
-        )
-        return cur.lastrowid
-
-
-def get_chat_history(user_id: int, limit: int = 100):
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM chat_messages WHERE user_id = ? ORDER BY id ASC LIMIT ?",
-            (user_id, limit),
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-def clear_chat_history(user_id: int):
-    with get_conn() as conn:
-        conn.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
-
-
-def set_chat_message_feedback(message_id: int, user_id: int, feedback: str):
-    """feedback is 'like', 'dislike', or None to clear it."""
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE chat_messages SET feedback = ? WHERE id = ? AND user_id = ?",
-            (feedback, message_id, user_id),
-        )

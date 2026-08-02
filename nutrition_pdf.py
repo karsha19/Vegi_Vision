@@ -8,7 +8,7 @@ or tested independently.
 """
 
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -49,7 +49,7 @@ def build_meal_plan_pdf(profile: dict, plan: dict, created_at: str = None) -> by
     story = []
 
     story.append(Paragraph("VegiVision — Smart Nutrition Assistant", s["title"]))
-    ts = created_at or datetime.utcnow().isoformat()
+    ts = created_at or datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     story.append(Paragraph(f"Generated: {ts}", s["muted"]))
     story.append(Spacer(1, 12))
 
