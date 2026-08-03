@@ -73,21 +73,35 @@ def classify_vegetable(image: Image.Image, top_k: int = 3) -> dict:
     }
 
 
-def classify_vegetables_multi(image: Image.Image, threshold: float = None) -> dict:
+def classify_vegetables_multi(image: Image.Image, threshold: float = None, top_n: int = None) -> dict:
     """Every vegetable present. Returns:
         {"detected_vegetables": [str, ...], "detections": [{"vegetable", "confidence"}, ...]}
+
+    If `top_n` is given, the threshold is ignored and the top `top_n` most
+    confident classes are returned regardless of score -- useful when the
+    model's confidence scores run low overall but you still want its best
+    guesses at everything in the photo, rather than only whatever happens
+    to clear a fixed cutoff.
     """
     model, config = _load_multilabel_classifier()
-    thr = threshold if threshold is not None else config.get("threshold", 0.5)
     arr = _preprocess(image, config["image_size"], config["preprocess_fn"])
 
     probs = model.predict(arr, verbose=0)[0]
     class_names = config["class_names"]
-    detections = [
-        {"vegetable": class_names[i], "confidence": float(p)}
-        for i, p in enumerate(probs) if p >= thr
-    ]
-    detections.sort(key=lambda d: -d["confidence"])
+
+    if top_n is not None:
+        ranked = sorted(
+            ({"vegetable": class_names[i], "confidence": float(p)} for i, p in enumerate(probs)),
+            key=lambda d: -d["confidence"],
+        )
+        detections = ranked[:top_n]
+    else:
+        thr = threshold if threshold is not None else config.get("threshold", 0.5)
+        detections = [
+            {"vegetable": class_names[i], "confidence": float(p)}
+            for i, p in enumerate(probs) if p >= thr
+        ]
+        detections.sort(key=lambda d: -d["confidence"])
 
     return {
         "detected_vegetables": [d["vegetable"] for d in detections],
