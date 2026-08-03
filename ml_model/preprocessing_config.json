@@ -1,0 +1,17 @@
+{
+  "image_size": [
+    224,
+    224
+  ],
+  "backbone": "ResNet50",
+  "preprocess_fn": "tf.keras.applications.resnet50.preprocess_input",
+  "vegetables_only": true,
+  "num_classes": 26,
+  "best_hyperparameters": {
+    "exp_id": "E2",
+    "lr": 0.0005,
+    "batch_size": 32,
+    "dropout": 0.4,
+    "optimizer": "adam"
+  }
+}

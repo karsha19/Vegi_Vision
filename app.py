@@ -5,6 +5,10 @@ Vegetable Recipe Maker — an editorial / bento-grid Streamlit app powered
 by Gemini + SQLite. Run with: streamlit run app.py
 """
 
+
+import json
+from pathlib import Path
+import tensorflow as tf
 import os
 import base64
 import io
@@ -505,16 +509,24 @@ def page_generate():
                     st.session_state.veg_image = img
                     st.image(img, caption=t("caption_uploaded"), use_container_width=True)
                     if st.button(f"🔍 {t('btn_identify')}", key="identify_btn"):
-                        if not gm.is_configured():
-                            st.error(t("err_gemini_not_configured"))
-                        else:
-                            with st.spinner(t("msg_looking")):
-                                try:
-                                    detected = gm.identify_vegetable_from_image(img)
-                                    st.session_state.detected_veg = detected
-                                    st.success(t("msg_detected", name=detected))
-                                except Exception as e:
-                                    st.error(t("err_identify_failed", error=e))
+                        with st.spinner(t("msg_looking")):
+                            try:
+                                import vegetable_classifier as vc
+
+                                result = vc.classify_vegetable(img)
+                                detected = result["predicted_vegetable"]
+                                confidence = result["confidence"]
+
+                                if confidence < 0.3:  # tune this threshold
+                                    st.warning(
+                                        f"Not fully sure — best guess is **{detected}** ({confidence:.0%} confidence). "
+                                        f"Try a clearer photo, or pick manually below."
+                                    )
+
+                                st.session_state.detected_veg = detected
+                                st.success(t("msg_detected", name=detected))
+                            except Exception as e:
+                                st.error(t("err_identify_failed", error=e))
 
             with tab_manual:
                 manual_input = st.text_input(
