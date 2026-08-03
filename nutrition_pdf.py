@@ -155,3 +155,4 @@ def build_meal_plan_pdf(profile: dict, plan: dict, created_at: str = None) -> by
 
     doc.build(story)
     return buf.getvalue()
+
