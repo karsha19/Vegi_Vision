@@ -1,0 +1,37 @@
+{
+  "image_size": [
+    224,
+    224
+  ],
+  "backbone": "MobileNetV3Small",
+  "preprocess_fn": "tf.keras.applications.mobilenet_v3.preprocess_input",
+  "threshold": 0.5,
+  "class_names": [
+    "beetroot",
+    "bell pepper",
+    "cabbage",
+    "capsicum",
+    "carrot",
+    "cauliflower",
+    "chilli pepper",
+    "corn",
+    "cucumber",
+    "eggplant",
+    "garlic",
+    "ginger",
+    "jalepeno",
+    "lemon",
+    "lettuce",
+    "onion",
+    "paprika",
+    "peas",
+    "potato",
+    "raddish",
+    "soy beans",
+    "spinach",
+    "sweetcorn",
+    "sweetpotato",
+    "tomato",
+    "turnip"
+  ]
+}

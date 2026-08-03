@@ -184,22 +184,67 @@ def get_theme_css(dark_mode: bool, sidebar_collapsed: bool = False) -> str:
         background: transparent !important;
     }}
 
-    /* ---------- Typography ---------- */
+    /* ---------- Typography ----------
+       Streamlit ships its own bundled stylesheet with class-attribute
+       and data-testid selectors that carry higher CSS specificity than
+       a bare element selector like `div` or `p`. Without !important
+       here, Streamlit's own static text color wins the cascade and the
+       app's text silently stops following --text-primary/--text-
+       secondary when dark mode is toggled, even though the variables
+       themselves ARE updating correctly. Every rule in this block is
+       !important specifically to guarantee our theme variables always
+       win over Streamlit's built-in styling. */
     h1, h2, h3, h4, h5, h6, .headline {{
         font-family: 'Fraunces', serif;
-        color: var(--text-primary);
+        color: var(--text-primary) !important;
         letter-spacing: -0.01em;
     }}
-    p, span, div, label, li {{
-        color: var(--text-secondary);
+    p, span, div, label, li,
+    [data-testid="stMarkdownContainer"],
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] span,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stMarkdownContainer"] ol,
+    [data-testid="stMarkdownContainer"] ul,
+    [data-testid="stText"],
+    [data-testid="stCaptionContainer"],
+    [data-testid="stCaptionContainer"] p,
+    [data-testid="stWidgetLabel"],
+    [data-testid="stWidgetLabel"] p,
+    [data-testid="stWidgetLabel"] span,
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricDelta"],
+    [data-testid="stExpander"] summary,
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpander"] p,
+    [data-testid="stTooltipIcon"],
+    [data-testid="stTooltipHoverTarget"],
+    [data-testid="stElementContainer"] p,
+    [data-testid="stElementContainer"] span,
+    .stCheckbox label span p,
+    .stRadio label span p,
+    .stSelectbox label span p,
+    .stAlert p, .stAlert span {{
+        color: var(--text-secondary) !important;
+    }}
+    [data-testid="stMarkdownContainer"] h1,
+    [data-testid="stMarkdownContainer"] h2,
+    [data-testid="stMarkdownContainer"] h3,
+    [data-testid="stMarkdownContainer"] h4,
+    [data-testid="stMarkdownContainer"] h5,
+    [data-testid="stMarkdownContainer"] h6,
+    [data-testid="stMarkdownContainer"] strong,
+    [data-testid="stMarkdownContainer"] b {{
+        color: var(--text-primary) !important;
     }}
     a {{
-        color: var(--primary);
+        color: var(--primary) !important;
         text-decoration: none;
         transition: color 0.15s ease;
     }}
     a:hover {{
-        color: var(--primary-hover);
+        color: var(--primary-hover) !important;
         text-decoration: underline;
     }}
 
